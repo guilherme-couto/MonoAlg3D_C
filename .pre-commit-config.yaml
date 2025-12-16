@@ -1,0 +1,16 @@
+repos:
+  - repo: local
+    hooks:
+      - id: drop-large-files
+        name: Drop files larger than 50 MB from commit
+        entry: scripts/precommit_drop_large_files.sh
+        language: system
+        stages: [pre-commit]
+        require_serial: true
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-case-conflict
