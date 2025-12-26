@@ -8,6 +8,9 @@ struct default_fibrotic_mesh_info {
     bool fibrotic;
     bool border_zone;
     int tissue_type;
+    int bz_layer;        // Border zone layer index. -1 = Healthy (not in BZ), 0 = Fibrotic Core, >0 = Border Zone Layer. Added by Guilherme 2025-12-25
+    float bz_multiplier; // Border zone multiplier for ionic currents. Between 0 and 1, where 0 is fully fibrotic, 1 is the last layer before healthy tissue
+                         // and -1 is healthy tissue (not in border zone). Added by Guilherme 2025-12-25
 };
 
 // TODO: Move this struct and its macros to "custom_mesh_info_data.h"!
@@ -24,6 +27,8 @@ struct dti_mesh_info {
 #define FIBROTIC(grid_cell) (FIBROTIC_INFO(grid_cell))->fibrotic
 #define BORDER_ZONE(grid_cell) (FIBROTIC_INFO(grid_cell))->border_zone
 #define TISSUE_TYPE(grid_cell) (FIBROTIC_INFO(grid_cell))->tissue_type
+#define BZ_LAYER(grid_cell) (FIBROTIC_INFO(grid_cell))->bz_layer
+#define BZ_MULTIPLIER(grid_cell) (FIBROTIC_INFO(grid_cell))->bz_multiplier
 
 #define INITIALIZE_FIBROTIC_INFO(grid_cell)                                                                            \
     do {                                                                                                               \
@@ -33,9 +38,11 @@ struct dti_mesh_info {
         FIBROTIC ((grid_cell)) = false;                                                                                \
         BORDER_ZONE (grid_cell) = false;                                                                               \
         TISSUE_TYPE ((grid_cell)) = 0;                                                                                 \
+        BZ_LAYER((grid_cell)) = -1;                                                                                    \
+        BZ_MULTIPLIER((grid_cell)) = -1;                                                                               \
 } while (0)
 
-#define INITIALIZE_DTI_MESH_INFO(grid_cell) ALLOCATE_MESH_INFO(grid_cell, dti_mesh_info);   
+#define INITIALIZE_DTI_MESH_INFO(grid_cell) ALLOCATE_MESH_INFO(grid_cell, dti_mesh_info);
 #define DTI_MESH_INFO(grid_cell) (struct dti_mesh_info *)grid_cell->mesh_extra_info
 #define DTI_MESH_TRANSMURALITY_LABELS(grid_cell) (DTI_MESH_INFO(grid_cell))->dti_transmurality_labels
 #define DTI_MESH_TRANSMURALITY(grid_cell) (DTI_MESH_INFO(grid_cell))->transmurality
