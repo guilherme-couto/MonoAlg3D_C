@@ -1,44 +1,58 @@
-WSL BUILD INSTRUCTIONS AND TROUBLESHOOTING
-Target System: Windows Subsystem for Linux (WSL)
-Dependencies: Octave, G++ (managed via Conda)
+CONDA ENVIRONMENT MANAGEMENT GUIDE
+Project: Perlin Noise Fibrosis Generator
 
-1. COMPILATION OF C++ SOURCES
-The project contains C++ files (Octave2D.cpp, Octave3D.cpp) that must be compiled into MEX files callable by Octave. These files utilize the "mex.h" header (MATLAB API style).
+1. OVERVIEW
+This project relies on specific system-level dependencies (Octave, C++ compilers) managed through Conda. This guide details how to maintain, update, and share the environment configuration to ensure reproducibility.
 
-Build Tool:
-Use 'mkoctfile', which is provided by the Octave package in Conda.
+2. INITIAL SETUP
+The environment 'perlin-fib-env' was initialized with the following configuration:
+Channel: conda-forge (required for up-to-date Octave and compilers)
+Key Packages:
+- octave
+- gxx_linux-64 (G++ compiler for Linux)
+- make
 
-Instructions:
-1. Activate the Conda environment.
-2. Navigate to the directory containing the .cpp files.
-3. Run the following commands to generate the binary MEX files:
+Command used for creation:
+$ conda create -n perlin-fib-env
+$ conda activate perlin-fib-env
+$ conda install -c conda-forge octave gxx_linux-64 make
 
-   $ mkoctfile --mex Octave2D.cpp
-   $ mkoctfile --mex Octave3D.cpp
+3. MAINTAINING THE ENVIRONMENT FILE (environment.yml)
+To ensure other users (or yourself on a different machine) can replicate this exact setup, you must generate an 'environment.yml' file. This file lists all installed packages and versions.
 
-Expected Output:
-This will generate files with extensions '.mex' (or '.mexa64'). These binaries are automatically detected by Octave as functions.
+Action:
+After installing any new package, run the following command to update the definition file:
 
-2. KNOWN ISSUE: OCTAVE TERMINAL FREEZE ON WSL
-Description:
-When running Octave via Conda on WSL, the standard 'octave' command may result in a frozen terminal. The prompt accepts no input, and text is not echoed back to the screen.
+$ conda env export > environment.yml
 
-Cause:
-This is a conflict between the Conda-provided 'readline' library and the system/WSL interface, often triggered by the GUI (Qt) initialization.
+Note: It is recommended to run this command every time you install a new dependency to keep the documentation current.
 
-Workaround/Solution:
-Do not run the standard 'octave' command. Instead, use the command-line interface (CLI) executable with specific flags to disable line editing features.
+4. INSTALLING NEW PACKAGES
+When adding new tools, prioritize the 'conda-forge' channel to avoid conflicts with system libraries.
 
-Command to run Octave interactively:
-$ octave-cli --no-line-editing
+Command:
+$ conda install -c conda-forge <package_name>
 
-Command to run scripts directly (Recommended):
-$ octave-cli script_name.m
+After installation, repeat step 3 to update 'environment.yml'.
 
-3. VERIFICATION
-To verify the build was successful:
-1. Open the terminal: $ octave-cli --no-line-editing
-2. Check for MEX files: ls *.mex
-3. Attempt to call the function helper (even if undocumented): help Octave2D
+5. RECREATING THE ENVIRONMENT
+If setting up this project on a new machine or after a clean wipe, use the YAML file to recreate the environment identically.
 
-If the error returns "'Octave2D' is not documented" rather than "undefined," the binary has been successfully loaded.
+Command:
+$ conda env create -f environment.yml
+
+6. MANUAL CHANGE LOG (OPTIONAL)
+Use this section to track major additions to the environment and the reasoning behind them.
+
+[Date: YYYY-MM-DD]
+- Installed: <package_name>
+- Reason: <brief explanation>
+
+--- Example Entries ---
+[2025-01-15]
+- Installed: pandas
+- Reason: Needed for handling CSV output from simulations.
+
+[2025-02-10]
+- Installed: matplotlib
+- Reason: For quick plotting within Python scripts.
