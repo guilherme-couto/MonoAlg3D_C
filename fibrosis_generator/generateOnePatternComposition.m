@@ -50,7 +50,7 @@ function pattern_data = generateOnePatternComposition(params, density, seed_num,
 threshold = getCompositionThreshold(density, tolerance);
 
 % Generate the base fibrosis pattern
-[presence, fc_density, bz_layers, fibrotic_core] = createFibroPatternComplete(mesh, threshold, params, permute_table, offset_table, border_zone, variable_direction);
+[presence, fc_density, bz_layers, fibrotic_core, Ob, Od, F, noise] = createFibroPatternComplete(mesh, threshold, params, permute_table, offset_table, border_zone, variable_direction);
 
 % Get the density of the pattern generated
 actual_density = fc_density;
@@ -69,7 +69,7 @@ while abs(actual_density - density) > tolerance
     [permute_table, offset_table] = generateTables(seed_num + iterations);
     abs_diff = abs(actual_density - density);
     threshold = getCompositionThreshold(abs_diff, tolerance);
-    aux_presence = createFibroPatternComplete(mesh, threshold, params, permute_table, offset_table, border_zone, variable_direction);
+    [aux_presence, fc_density, bz_layers, fibrotic_core, Ob, Od, F, noise] = createFibroPatternComplete(mesh, threshold, params, permute_table, offset_table, border_zone, variable_direction);
 
     % Sum the patterns
     aux_presence = aux_presence | presence;
@@ -91,7 +91,7 @@ while abs(actual_density - density) > tolerance
     if tries_counter > max_tries
         % Generate a new pattern
         threshold = getCompositionThreshold(density, tolerance);
-        [presence, fc_density] = createFibroPatternComplete(mesh, threshold, params, permute_table, offset_table, border_zone, variable_direction);
+        [presence, fc_density, bz_layers, fibrotic_core, Ob, Od, F, noise] = createFibroPatternComplete(mesh, threshold, params, permute_table, offset_table, border_zone, variable_direction);
         actual_density = fc_density;
         tries_counter = 0;
     end
@@ -105,5 +105,10 @@ pattern_data.bz_layers         = bz_layers;
 pattern_data.fiber_orientation = params(8);
 pattern_data.mesh              = mesh;
 pattern_data.seed_num          = seed_num;
+
+pattern_data.Ob = Ob;
+pattern_data.Od = Od;
+pattern_data.F = F;
+pattern_data.noise = noise;
 
 end
