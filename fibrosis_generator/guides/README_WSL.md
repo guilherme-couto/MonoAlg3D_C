@@ -42,3 +42,29 @@ To verify the build was successful:
 3. Attempt to call the function helper (even if undocumented): help Octave2D
 
 If the error returns "'Octave2D' is not documented" rather than "undefined," the binary has been successfully loaded.
+
+4. GRAPHICS AND RENDERING (HEADLESS MODE)
+Generating images on WSL is challenging because the environment is "headless" (no physical display). Standard Octave plotting commands (figure, plot, print) rely on OpenGL toolkits (FLTK/Qt) which require a running X-Server or specific display configurations. Using them often leads to errors like "rendering requires visible figure" or freezes.
+
+Recommended Approach: "Direct Matrix Writing"
+Avoid using 'print()'. Instead, use the 'imwrite()' function. This function saves the data matrix directly to disk as an image file without attempting to render a window first.
+
+Handling Colors (Without Colormaps):
+Using 'colormap' or indexed images can cause errors with the graphics libraries in headless mode. The most robust method is to manually construct an RGB matrix.
+
+Example: Creating a Red Fibrosis pattern on a White Background:
+
+   % 1. Create a base white image (All channels = 1)
+   [rows, cols] = size(fibrosis_data);
+   img_rgb = ones(rows, cols, 3);
+
+   % 2. Define the mask where fibrosis exists (logical 1)
+   mask = logical(fibrosis_data);
+
+   % 3. Set Green and Blue channels to 0 where fibrosis exists
+   % (Result: R=1, G=0, B=0 -> Red)
+   G = img_rgb(:,:,2); G(mask) = 0; img_rgb(:,:,2) = G;
+   B = img_rgb(:,:,3); B(mask) = 0; img_rgb(:,:,3) = B;
+
+   % 4. Save directly
+   imwrite(img_rgb, 'output_filename.png');
