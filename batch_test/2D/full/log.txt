@@ -1,0 +1,22 @@
+2026-01-02 01:14:40 - INFO - Log file configured at: /home/guilherme-couto/MonoAlg3D_C/batch_test/2D/full/log.txt
+2026-01-02 01:14:40 - INFO - Base directory set to: /home/guilherme-couto/MonoAlg3D_C/batch_test/2D/full
+2026-01-02 01:14:40 - INFO - Using base configuration file: base_simulation_config.ini
+2026-01-02 01:14:40 - INFO - Copied base configuration file to: /home/guilherme-couto/MonoAlg3D_C/batch_test/2D/full/configs/base_simulation_config.ini
+2026-01-02 01:14:40 - INFO - Densities to simulate: [0.35 0.3  0.25]
+2026-01-02 01:14:40 - INFO - Number of seeds: 1
+2026-01-02 01:14:40 - INFO - Master seed: 20260101
+2026-01-02 01:14:40 - INFO - Seeds: [2323000660]
+2026-01-02 01:14:40 - INFO - Meshes Configuration: {'fibrosis_type': 'compact', 'dim_mode': '2D', 'shape': 'full', 'domain_dims': [0.01, 4.0, 4.0, 0.0], 'core_dims': []}
+2026-01-02 01:14:40 - INFO - ---- Starting Batch Simulations ----
+2026-01-02 01:14:40 - INFO - Loaded 3 completed simulations from history.
+2026-01-02 01:14:40 - INFO - Starting batch for ATPI = 2.0
+2026-01-02 01:14:40 - INFO - Processing angle: 45 degrees
+2026-01-02 01:14:40 - INFO - Skipping done: compact angle=45 den=0.35 seed=2323000660
+2026-01-02 01:14:40 - INFO - Simulations completed for density 0.35.
+2026-01-02 01:14:40 - INFO - Skipping done: compact angle=45 den=0.3 seed=2323000660
+2026-01-02 01:14:40 - INFO - Simulations completed for density 0.3.
+2026-01-02 01:14:40 - INFO - Skipping done: compact angle=45 den=0.25 seed=2323000660
+2026-01-02 01:14:40 - INFO - Simulations completed for density 0.25.
+2026-01-02 01:14:40 - INFO - Simulations completed for all densities at angle 45.
+2026-01-02 01:14:40 - INFO - Simulations completed for all angles for ATPI = 2.0.
+2026-01-02 01:14:40 - INFO - Batch Completed.
