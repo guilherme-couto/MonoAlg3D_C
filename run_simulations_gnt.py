@@ -9,12 +9,7 @@ This script manages the entire pipeline:
 4. Configures and runs the MonoAlg simulator.
 5. Parses the results and logs them to a comprehensive CSV file.
 """
-import os
-import subprocess
-import configparser
-import logging
-import argparse
-import shutil
+import os, subprocess, configparser, logging, argparse, shutil, sys, time
 import numpy as np
 import pandas as pd
 from datetime import datetime
@@ -31,43 +26,78 @@ class CasePreservingConfigParser(configparser.ConfigParser):
         return optionstr
 
 def setup_logging(log_file=None):
-    """Configures logging to console and optionally to a file."""
+    """
+    Configures logging to console and optionally to a file:
+    - Console (INFO+): Clean summary, no clutter.
+    - File (DEBUG+): Detailed audit trail of every seed.
+    """
     root_logger = logging.getLogger()
-    root_logger.setLevel(logging.INFO)
+    root_logger.setLevel(logging.DEBUG)
 
     if root_logger.hasHandlers():
         root_logger.handlers.clear()
 
-    formatter = logging.Formatter(
-        '%(asctime)s - %(levelname)s - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
-    )
-
-    # Console Handler
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(formatter)
+    # --- Console Handler ---
+    console_fmt = logging.Formatter('%(asctime)s | %(levelname)-7s | %(message)s', datefmt='%H:%M:%S')
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(console_fmt)
+    console_handler.setLevel(logging.INFO) # Just show INFO, WARNING, ERROR
     root_logger.addHandler(console_handler)
 
-    # File Handler
+    # --- 2. File Handler (Detailed) ---
     if log_file:
         log_path = Path(log_file)
         log_path.parent.mkdir(parents=True, exist_ok=True)
 
+        file_fmt = logging.Formatter(
+            '%(asctime)s - %(levelname)s - %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S'
+        )
         file_handler = logging.FileHandler(log_path, mode='w')
-        file_handler.setFormatter(formatter)
+        file_handler.setFormatter(file_fmt)
+        file_handler.setLevel(logging.DEBUG)
         root_logger.addHandler(file_handler)
 
-        logging.info(f"Log file configured at: {log_path.resolve()}")
+        root_logger.debug(f"Log file configured at: {log_path.resolve()}")
+
+def print_progress(iteration, total, prefix='', suffix='', decimals=1, length=40):
+    """
+    Adaptive progress indicator:
+    - Desktop (Interactive Terminal): Animated bar.
+    - Cluster (Non-interactive/File): Discrete logs every 10%.
+    """
+    # Check if we are in a real terminal
+    is_interactive = sys.stdout.isatty()
+
+    percent_float = 100 * (iteration / float(total))
+    percent_str = ("{0:." + str(decimals) + "f}").format(percent_float)
+
+    if is_interactive:
+        filled_length = int(length * iteration // total)
+        bar = '█' * filled_length + '-' * (length - filled_length)
+        sys.stdout.write(f'\r{prefix}  |{bar}| {percent_str}% {suffix}')
+        if iteration == total:
+            sys.stdout.write('\n')
+        sys.stdout.flush()
+
+    else:
+        should_print = (iteration == 1) or (iteration == total) or (iteration % (max(1, total // 10)) == 0)
+
+        if should_print:
+            logging.info(f"{prefix} Progress: {iteration}/{total} ({percent_str}%) {suffix}")
 
 def load_completed_simulations(results_csv_path):
     """Loads the results CSV to check for completed simulations."""
     if not results_csv_path.is_file():
-        # Create file with header
         results_csv_path.parent.mkdir(parents=True, exist_ok=True)
         pd.DataFrame(columns=[
             'fibrosis_type', 'fiber_angle_deg', 'density', 'seed', 'atpi', 'final_time_ms'
         ]).to_csv(results_csv_path, index=False)
-    return pd.read_csv(results_csv_path)
+        logging.debug(f"Created new results file at: {results_csv_path}")
+
+    df = pd.read_csv(results_csv_path)
+    logging.debug(f"Loaded history: {len(df)} simulations found.")
+    return df
 
 def is_simulation_done(df, params):
     """Checks if a simulation with the given parameters is already in the DataFrame."""
@@ -102,7 +132,7 @@ def check_existing_meshes(fibrosis_type, angles, densities, seeds, meshes_dir):
             logging.error(f"... and {len(missing_files)-5} more.")
         return False
 
-    logging.info(f"All required meshes found in: {f_mesh_dir}")
+    logging.info(f"Integrity Check: All {len(angles)*len(densities)*len(seeds)} required meshes found.")
     return True
 
 def generate_fibrosis_mesh(mesh_config, output_batch_dir):
@@ -126,10 +156,10 @@ def generate_fibrosis_mesh(mesh_config, output_batch_dir):
 
     # Skip if exists
     if final_mesh_path.exists():
-        logging.info(f"Skipping generation, mesh exists: {final_mesh_path.name}")
+        logging.debug(f"Mesh already exists: {final_mesh_path.name}")
         return str(final_mesh_path)
 
-    logging.info(f"Generating mesh: {final_mesh_path.name}")
+    logging.debug(f"Generating mesh via Octave: {final_mesh_path.name}")
 
     domain_str = ','.join(map(str, domain_vec))
     core_str = ','.join(map(str, core_vec)) if core_vec else ''
@@ -138,10 +168,10 @@ def generate_fibrosis_mesh(mesh_config, output_batch_dir):
     cmd = ["octave-cli", "-W", "-q", "--no-gui", "--eval", octave_cmd]
 
     try:
-        logging.info(f"Executing Octave command for mesh generation...")
+        logging.debug(f"Calling subprocess: {' '.join(cmd)}")
         subprocess.run(cmd, check=True, capture_output=True, text=True, cwd=str(OCTAVE_SCRIPT_DIR))
     except subprocess.CalledProcessError as e:
-        logging.error(f"Octave execution failed!")
+        logging.error(f"Octave execution failed for seed {seed}!")
         logging.error(f"STDOUT: {e.stdout}")
         logging.error(f"STDERR: {e.stderr}")
         raise e
@@ -189,14 +219,16 @@ def configure_and_run_simulation(mesh_path, sim_output_dir, sim_params, batch_di
         config.write(configfile)
 
     # Execute the simulation with MonoAlg3D
-    logging.info(f"Running MonoAlg3D with config: {ini_path.name}")
     monoalg_exe = CWD / "bin" / "MonoAlg3D"
     command = [str(monoalg_exe), "-c", str(ini_path)]
+
+    logging.debug(f"Launching MonoAlg3D: {ini_path.name}")
+    logging.debug(f"Command: {' '.join(command)}")
 
     try:
         subprocess.run(command, check=True, capture_output=True, text=True)
     except subprocess.CalledProcessError as e:
-        logging.error(f"MonoAlg3D failed for {simulation_name}.")
+        logging.error(f"MonoAlg3D failed for {sim_params['fibrosis_type']} seed {sim_params['seed']}.")
         logging.error(f"Stderr: {e.stderr}")
         raise e
 
@@ -204,7 +236,7 @@ def parse_simulation_log(sim_output_dir):
     """Parses outputlog.txt for final time."""
     simulation_log_file = sim_output_dir / "outputlog.txt"
     if not simulation_log_file.is_file():
-        logging.warning(f"Log file not found: {simulation_log_file}")
+        logging.error(f"Output log not found: {simulation_log_file}")
         return -1.0
 
     last_t = 0.0
@@ -217,15 +249,16 @@ def parse_simulation_log(sim_output_dir):
                     if t_value > last_t:
                         last_t = t_value
                 except (IndexError, ValueError):
-                    logging.error(f"Failed to parse log file {simulation_log_file.name} line: {line.strip()}")
+                    logging.error(f"Parse error in {simulation_log_file.name}: {line.strip()}")
                     raise
 
-    logging.info(f"Simulation finished. Final time: {last_t} ms.")
+    logging.debug(f"Parsed final time: {last_t} ms from {simulation_log_file.name}")
     return last_t
 
 def run_simulation_batch(batch_params):
     """Runs a batch of simulations for given parameters."""
 
+    # Unpack parameters
     angles = batch_params['angles']
     densities = batch_params['densities']
     seeds = batch_params['seeds']
@@ -234,29 +267,33 @@ def run_simulation_batch(batch_params):
     generate_mesh = batch_params['generate_mesh']
     batch_dir = batch_params['batch_dir']
     base_config_path = batch_params['base_config_path']
-
     fibrosis_type = mesh_config["fibrosis_type"]
 
-    # --- DYNAMIC DIRECTORY SETUP (Based on ATPI) ---
+    # Setup directories
     outputs_dir = batch_dir / "outputs"
     alg_meshes_dir = batch_dir / "alg_meshes"
-
-    batch_params['outputs_dir'] = outputs_dir
-    batch_params['alg_meshes_dir'] = alg_meshes_dir
-
     results_csv_path = batch_dir / "analysis" / "simulation_results.csv"
 
-    # Load History
+    # Load history of completed simulations
     completed_df = load_completed_simulations(results_csv_path)
-    logging.info(f"Loaded {len(completed_df)} completed simulations from history.")
+
+    # Visual header
+    logging.info("="*60)
+    logging.info(f"STARTING BATCH: {fibrosis_type.upper()}")
+    logging.info(f"Configurations: {len(atpi_vals)} ATPIs x {len(angles)} Angles x {len(densities)} Densities")
+    logging.info(f"Seeds per Config: {len(seeds)}")
+    logging.info("="*60)
 
     if not generate_mesh:
-        logging.info("Mesh generation not requested. Verifying existing meshes...")
         if not check_existing_meshes(fibrosis_type, angles, densities, alg_meshes_dir):
             logging.error("Aborting. Use --generate_mesh flag to create missing meshes.")
             return
 
+    total_configs = len(atpi_vals) * len(angles) * len(densities)
+    config_counter = 0
+
     # --- BATCH LOOP ---
+    logging.info(f"---- Starting Batch Simulations ----")
     for atpi_val in atpi_vals:
         logging.info(f"Starting batch for ATPI = {atpi_val}")
 
@@ -265,9 +302,19 @@ def run_simulation_batch(batch_params):
 
             for density in densities:
                 density = round(density, 2)
+                config_counter += 1
 
-                for seed in seeds:
-                    # Check if done
+                # Block header
+                header_msg = f"[{config_counter}/{total_configs}] Config: ATPI={atpi_val} | Angle={angle_deg}° | Density={density:.2f}"
+                logging.info(header_msg)
+
+                # Counters
+                skipped = 0
+                processed = 0
+                errors = 0
+                start_time = time.time()
+
+                for i, seed in enumerate(seeds):
                     sim_params = {
                         'fibrosis_type': fibrosis_type,
                         'fiber_angle_deg': angle_deg,
@@ -276,42 +323,60 @@ def run_simulation_batch(batch_params):
                         'atpi': atpi_val
                     }
 
+                    # Update progress bar
+                    suffix_info = f"(Run: {processed}, Skip: {skipped}, Err: {errors})"
+                    print_progress(i + 1, len(seeds), prefix="Processing seeds:", suffix=suffix_info, length=30)
+
+                    logging.debug(f"SEED {seed}: Checking status...")
+
                     if is_simulation_done(completed_df, sim_params):
-                        logging.info(f"Skipping done: {fibrosis_type} angle={angle_deg} den={density} seed={seed}")
+                        skipped += 1
+                        logging.debug(f"SEED {seed}: Skipped (Simulation already done)")
                         continue
 
-                    logging.info(f"Starting simulation: {fibrosis_type} angle={angle_deg} den={density} seed={seed}")
+                    try:
+                        # 1. Mesh Config
+                        mesh_config["angle_deg"] = angle_deg
+                        mesh_config["density"] = density
+                        mesh_config["seed"] = seed
 
-                    # 1. Get Mesh
-                    mesh_config["angle_deg"] = angle_deg
-                    mesh_config["density"] = density
-                    mesh_config["seed"] = seed
-                    if generate_mesh:
-                        mesh_path = generate_fibrosis_mesh(mesh_config, alg_meshes_dir)
-                    else:
-                        mesh_path = alg_meshes_dir / fibrosis_type / f"{fibrosis_type}_angle{angle_deg}_density{density:.2f}_seed{seed}.alg"
-                    mesh_config["mesh_path"] = mesh_path
+                        if generate_mesh:
+                            mesh_path = generate_fibrosis_mesh(mesh_config, alg_meshes_dir)
+                        else:
+                            mesh_path = alg_meshes_dir / fibrosis_type / f"{fibrosis_type}_angle{angle_deg}_density{density:.2f}_seed{seed}.alg"
 
-                    # 2. Run Simulation
-                    sim_out_dir = outputs_dir / f"atpi{atpi_val}" / f"{fibrosis_type}_angle{angle_deg}" / f"den{density}_seed{seed}"
-                    configure_and_run_simulation(mesh_path, sim_out_dir, sim_params, batch_dir, base_config_path)
+                        # 2. Run Simulation
+                        sim_out_dir = outputs_dir / f"atpi{atpi_val}" / f"{fibrosis_type}_angle{angle_deg}" / f"den{density}_seed{seed}"
+                        configure_and_run_simulation(mesh_path, sim_out_dir, sim_params, batch_dir, base_config_path)
 
-                    # 3. Log Result
-                    final_time = parse_simulation_log(sim_out_dir)
-                    if final_time >= 0:
-                        result_data = sim_params.copy()
-                        result_data['final_time_ms'] = final_time
+                        # 3. Parse & Save
+                        final_time = parse_simulation_log(sim_out_dir)
 
-                        # Append to CSV immediately
-                        pd.DataFrame([result_data]).to_csv(results_csv_path, mode='a', header=False, index=False)
-                        # Update local DF to avoid re-running if script crashes and restarts
-                        completed_df = pd.concat([completed_df, pd.DataFrame([result_data])], ignore_index=True)
+                        if final_time >= 0:
+                            result_data = sim_params.copy()
+                            result_data['final_time_ms'] = final_time
 
-                        logging.info(f"Finished seed {seed}. Final Simulation Time: {final_time} ms")
-                logging.info(f"Simulations completed for density {density}.")
-            logging.info(f"Simulations completed for all densities at angle {angle_deg}.")
-        logging.info(f"Simulations completed for all angles for ATPI = {atpi_val}.")
-    logging.info("Batch Completed.")
+                            pd.DataFrame([result_data]).to_csv(results_csv_path, mode='a', header=False, index=False)
+                            new_row = pd.DataFrame([result_data])
+                            completed_df = pd.concat([completed_df, new_row], ignore_index=True)
+
+                            processed += 1
+                            logging.debug(f"SEED {seed}: Success (Sim finished: {final_time} ms)")
+                        else:
+                            errors += 1
+                            logging.warning(f"SEED {seed}: Invalid result (check debug log)")
+
+                    except Exception as e:
+                        errors += 1
+                        logging.error(f"SEED {seed}: Failed - {str(e)}")
+
+                elapsed = time.time() - start_time
+                logging.info(f"   > Done in {elapsed:.1f}s. Results: {processed} new, {skipped} skipped, {errors} errors.")
+                logging.info("-" * 40)
+
+    logging.info("="*60)
+    logging.info("BATCH COMPLETED SUCCESSFULLY")
+    logging.info("="*60)
 
 # --- SCRIPT ENTRY POINT ---
 if __name__ == "__main__":
@@ -324,8 +389,10 @@ if __name__ == "__main__":
     # Optional Configuration Arguments
     parser.add_argument("--batch_dir", type=str, default=f"simulation_batches_{datetime.now().strftime('%Y%m%d_%H%M%S')}", help="Base directory for configurations and results.")
     parser.add_argument("--angles", type=int, nargs='+', default=[0, 30, 60, 90], help="List of fiber angles in degrees.")
-    parser.add_argument("--min_den", type=float, default=0.1, help="Minimum fibrosis density.")
-    parser.add_argument("--max_den", type=float, default=0.9, help="Maximum fibrosis density.")
+    parser.add_argument("--min_den", type=float, default=0.1, help="Minimum fibrosis density (0.0 to 1.0).")
+    parser.add_argument("--max_den", type=float, default=0.9, help="Maximum fibrosis density (0.0 to 1.0).")
+    parser.add_argument("--dens_step", type=float, default=0.05, help="Step size for fibrosis density (0.0 to 1.0).")
+    parser.add_argument("--densities", type=float, nargs='+', default=[], help="Explicit list of densities to simulate (0.0 to 1.0).")
     parser.add_argument("--num_seeds", type=int, default=100, help="Number of random seeds to simulate.")
     parser.add_argument("--atpi_vals", type=float, nargs='+', default=[2.0], help="List of ATPI values.")
     parser.add_argument("--generate_mesh", action="store_true", help="Generate meshes via Octave GNT.")
@@ -345,8 +412,20 @@ if __name__ == "__main__":
     # Setup Logging
     log_file_path = None
     if args.log_file:
-        log_file_path = batch_dir / f"log.txt"
+        timestamp_str = datetime.now().strftime('%Y%m%d_%H%M%S')
+        log_filename = f"log_{timestamp_str}.txt"
+        log_file_path = batch_dir / "logs" / log_filename
+        log_file_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Initialize logging
     setup_logging(log_file=log_file_path)
+
+    # Date and System Info Header
+    start_time = datetime.now()
+    logging.info("="*60)
+    logging.info(f"EXECUTION STARTED AT: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
+    logging.info(f"Host System: {os.name.upper()}")
+    logging.info("="*60)
 
     # Verify base configuration file exists
     base_config_path = Path(args.base_config)
@@ -354,16 +433,20 @@ if __name__ == "__main__":
         logging.error(f"Base configuration file not found: {base_config_path}")
         exit(1)
 
-    # Copy base configuration file to batch_dir/configs as base_simulation_config.ini
+    # Copy base configuration file
     dest_base_config_path = batch_dir / "configs" / "base_simulation_config.ini"
     dest_base_config_path.parent.mkdir(parents=True, exist_ok=True)
     if not dest_base_config_path.is_file():
         shutil.copy(base_config_path, dest_base_config_path)
     base_config_path = dest_base_config_path
 
-    # Range of densities to simulate
-    density_step = 0.05
-    simulation_densities = np.arange(args.max_den, args.min_den - density_step, -density_step)
+    # Range of densities
+    density_step = args.dens_step
+    simulation_densities = np.arange(args.min_den, args.max_den + density_step, density_step)
+    if args.densities and len(args.densities) > 0:
+        simulation_densities = args.densities
+    simulation_densities = [round(d, 2) for d in simulation_densities if 0.0 < d < 1.0]
+    simulation_densities = sorted(list(set(simulation_densities)))
 
     # Seeds
     master_seed = 20260101 # Happy New Year 2026!
@@ -377,21 +460,22 @@ if __name__ == "__main__":
     mesh_config["shape"] = args.shape
     mesh_config["domain_dims"] = args.domain_dims
     mesh_config["core_dims"] = args.core_dims
-
-    # If shape is 'full', override core dimensions to empty
     if args.shape.lower() == "full":
         mesh_config["core_dims"] = []
 
-    # Log
-    logging.info(f"Base directory set to: {batch_dir.resolve()}")
-    logging.info(f"Using base configuration file: {Path(args.base_config).name}")
-    logging.info(f"Copied base configuration file to: {dest_base_config_path.resolve()}")
-    logging.info(f"Densities to simulate: {simulation_densities}")
-    logging.info(f"Number of seeds: {args.num_seeds}")
-    logging.info(f"Master seed: {master_seed}")
-    logging.info(f"Seeds: {seeds}")
-    logging.info(f"Meshes Configuration: {mesh_config}")
-    logging.info(f"---- Starting Batch Simulations ----")
+    # Configuration Summary Log
+    logging.info("--- CONFIGURATION SUMMARY ---")
+    logging.info(f"Base Directory   : {batch_dir.resolve()}")
+    logging.info(f"Config File      : {dest_base_config_path.name}")
+    logging.info(f"Densities        : {simulation_densities}")
+    logging.info(f"Fibrosis Type    : {args.ftype.upper()} ({args.dim_mode} - {args.shape})")
+    logging.info(f"Random Seeds     : {args.num_seeds} seeds generated (Master: {master_seed})")
+    logging.debug(f"Full Seed List   : {seeds}")
+    logging.debug(f"Meshes Config    : {mesh_config}")
+
+    if log_file_path:
+        logging.info(f"Log File         : {log_file_path.name}")
+    logging.info("-" * 30)
 
     # Batch Parameters
     batch_params = {
@@ -406,4 +490,16 @@ if __name__ == "__main__":
     }
 
     # Run Batch Simulations
-    run_simulation_batch(batch_params)
+    try:
+        run_simulation_batch(batch_params)
+    except KeyboardInterrupt:
+        logging.warning("\nBatch execution interrupted by user (Ctrl+C).")
+        exit(1)
+    except Exception as e:
+        logging.critical(f"Fatal error during batch execution: {e}", exc_info=True)
+        exit(1)
+
+    end_time = datetime.now()
+    duration = end_time - start_time
+    logging.info(f"EXECUTION FINISHED AT: {end_time.strftime('%Y-%m-%d %H:%M:%S')}")
+    logging.info(f"TOTAL DURATION: {duration}")
