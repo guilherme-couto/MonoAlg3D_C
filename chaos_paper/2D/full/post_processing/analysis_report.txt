@@ -1,0 +1,45 @@
+=== ADVANCED STATISTICAL ANALYSIS REPORT ===
+
+PART 1: LOGISTIC REGRESSION INFERENCE
+-------------------------------------
+Model: Sustained_Reentry ~ Density + Fibrosis_Type + Fiber_Angle
+Interpretation: Odds Ratio (OR) > 1 indicates increased risk relative to reference.
+P-value < 0.05 indicates statistical significance.
+
+                                       2.5%       97.5%         OR       p-value
+Intercept                          0.000205    0.003427   0.000838  6.020300e-23
+C(fibrosis_type)[T.diffuse]       17.955420  293.074560  72.541553  1.812843e-09
+C(fibrosis_type)[T.interstitial]  11.537859  190.287235  46.856240  7.438472e-08
+C(fibrosis_type)[T.patchy]         6.394659  107.897897  26.267284  5.789930e-06
+C(fiber_angle_deg)[T.30]           0.381284    0.788563   0.548330  1.189598e-03
+C(fiber_angle_deg)[T.60]           0.522985    1.019754   0.730285  6.501788e-02
+C(fiber_angle_deg)[T.90]           0.872049    1.578935   1.173417  2.909905e-01
+density                            0.054310    0.148032   0.089664  4.180968e-21
+
+Summary:
+Significant predictors (p<0.05): Intercept, C(fibrosis_type)[T.diffuse], C(fibrosis_type)[T.interstitial], C(fibrosis_type)[T.patchy], C(fiber_angle_deg)[T.30], density
+
+PART 2: ARRHYTHMIC BURDEN (AUC ANALYSIS)
+----------------------------------------
+Total area under probability curve (measure of overall risk across all densities).
+
+                   mean       std
+fibrosis_type
+diffuse        0.017625  0.006060
+interstitial   0.011500  0.004143
+patchy         0.006438  0.002183
+compact        0.000250  0.000289
+
+PART 3: UNCERTAINTY OVERVIEW (Standard Errors)
+----------------------------------------------
+Summary of Standard Errors (SE) by Fibrosis Type:
+
+                   mean  min       max       std
+fibrosis_type
+compact        0.000276  0.0  0.009950  0.001647
+diffuse        0.006901  0.0  0.036661  0.011460
+interstitial   0.005915  0.0  0.028618  0.009320
+patchy         0.004650  0.0  0.023749  0.007012
+
+NOTE: For the full table of SE and CI for every single configuration,
+please refer to the file: full_statistical_data.csv

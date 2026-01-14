@@ -2,3 +2,5 @@ fibrosis_type,fiber_angle_deg,density,seed,atpi,final_time_ms
 diffuse,90,0.28,2323000660,2.0,314.0
 diffuse,90,0.28,8281057198,2.0,264.0
 diffuse,90,0.28,5279693496,2.0,264.0
+diffuse,0,0.2,2323000660,2.0,122.0
+diffuse,0,0.25,2323000660,2.0,130.0

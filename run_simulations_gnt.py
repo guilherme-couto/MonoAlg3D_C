@@ -199,7 +199,7 @@ def configure_and_run_simulation(mesh_path, sim_output_dir, sim_params, batch_di
         num_extra_fields = len(parts) - 6
 
     # Construct simulation name and ECG file path
-    simulation_name = f"{ftype} angle={angle_deg} den={density} seed={seed} atpi={atpi_value}"
+    simulation_name = f"{ftype} angle {angle_deg} den {density} seed {seed} atpi {atpi_value}"
     ecg_file_path = sim_output_dir / "ecg.txt"
 
     # Configure .ini
@@ -442,7 +442,7 @@ if __name__ == "__main__":
 
     # Range of densities
     density_step = args.dens_step
-    simulation_densities = np.arange(args.min_den, args.max_den + density_step, density_step)
+    simulation_densities = np.arange(args.min_den, args.max_den + density_step, density_step, dtype=float).tolist()
     if args.densities and len(args.densities) > 0:
         simulation_densities = args.densities
     simulation_densities = [round(d, 2) for d in simulation_densities if 0.0 < d < 1.0]
