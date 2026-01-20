@@ -1,0 +1,31 @@
+=== GAM ANALYSIS: VULNERABLE WINDOW (0.1 - 0.55) ===
+NOTE: Zeros outside this range were excluded to improve model fit.
+
+
+Family: quasibinomial
+Link function: logit
+
+Formula:
+cbind(successes, failures) ~ fibrosis_type + s(density, by = fibrosis_type,
+    k = 5)
+
+Parametric coefficients:
+                          Estimate Std. Error t value Pr(>|t|)
+(Intercept)               -3.43509    0.17495 -19.634  < 2e-16 ***
+fibrosis_typecompact      -3.57227    0.66459  -5.375 1.35e-05 ***
+fibrosis_typeinterstitial -0.01334    0.22735  -0.059   0.9537
+fibrosis_typepatchy       -0.47584    0.23958  -1.986   0.0579 .
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Approximate significance of smooth terms:
+                                       edf Ref.df      F  p-value
+s(density):fibrosis_typediffuse      3.422  3.817 41.714  < 2e-16 ***
+s(density):fibrosis_typecompact      1.000  1.000  0.538     0.47
+s(density):fibrosis_typeinterstitial 3.136  3.624 24.447  < 2e-16 ***
+s(density):fibrosis_typepatchy       3.049  3.554 12.055 2.96e-05 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+R-sq.(adj) =  0.967   Deviance explained = 97.4%
+GCV = 2.0095  Scale est. = 1.3535    n = 40

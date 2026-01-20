@@ -1,0 +1,5 @@
+fibrosis_type	auc
+diffuse	0.0416
+interstitial	0.0283
+patchy	0.0151
+compact	0.0005

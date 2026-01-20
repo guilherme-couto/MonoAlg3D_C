@@ -1,4 +1,6 @@
 octave-workspace
+.RData
+.Rhistory
 
 # Large directories
 batch_test/
