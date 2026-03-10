@@ -1,0 +1,133 @@
+==========================================================
+          SCENARIO COMPARISON STATISTICAL REPORT
+==========================================================
+
+--- MODEL 1: ABSOLUTE RISK HIERARCHY (FIRTH) ---
+                                          fibrosis_type        Scenario
+type_scenariocompact|Focal Lesion               compact    Focal Lesion
+type_scenariocompact|Global Fibrosis            compact Global Fibrosis
+type_scenariodiffuse|Focal Lesion               diffuse    Focal Lesion
+type_scenariointerstitial|Focal Lesion     interstitial    Focal Lesion
+type_scenariointerstitial|Global Fibrosis  interstitial Global Fibrosis
+type_scenariopatchy|Focal Lesion                 patchy    Focal Lesion
+type_scenariopatchy|Global Fibrosis              patchy Global Fibrosis
+1                                               diffuse Global Fibrosis
+                                                  OR     lower_ci   upper_ci
+type_scenariocompact|Focal Lesion         0.00458272 0.0009208227 0.02280713
+type_scenariocompact|Global Fibrosis      0.01238246 0.0048789845 0.03142567
+type_scenariodiffuse|Focal Lesion         0.39054772 0.3160558822 0.48259668
+type_scenariointerstitial|Focal Lesion    0.21642124 0.1664428681 0.28140679
+type_scenariointerstitial|Global Fibrosis 0.65990749 0.5540803807 0.78594716
+type_scenariopatchy|Focal Lesion          0.08772975 0.0596767640 0.12896995
+type_scenariopatchy|Global Fibrosis       0.34440925 0.2784571561 0.42598198
+1                                         1.00000000 1.0000000000 1.00000000
+
+----------------------------------------------------------
+--- MODEL 2: SCENARIO-TYPE INTERACTION ANALYSIS (FIRTH) ---
+
+Call:
+glm(formula = cbind(successes, failures) ~ fibrosis_type * Scenario,
+    family = binomial(link = "logit"), data = data_combined,
+    method = "brglmFit")
+
+Deviance Residuals:
+    Min       1Q   Median       3Q      Max
+-7.7745  -3.0768  -0.6415   1.4166   9.7026
+
+Coefficients:
+                                               Estimate Std. Error z value
+(Intercept)                                    -2.39762    0.05720 -41.916
+fibrosis_typecompact                           -4.39147    0.47518  -9.242
+fibrosis_typeinterstitial                      -0.41566    0.08918  -4.661
+fibrosis_typepatchy                            -1.06592    0.10845  -9.828
+ScenarioFocal Lesion                           -0.94021    0.10798  -8.707
+fibrosis_typecompact:ScenarioFocal Lesion      -0.05378    0.94938  -0.057
+fibrosis_typeinterstitial:ScenarioFocal Lesion -0.17467    0.17611  -0.992
+fibrosis_typepatchy:ScenarioFocal Lesion       -0.42736    0.23564  -1.814
+                                               Pr(>|z|)
+(Intercept)                                     < 2e-16 ***
+fibrosis_typecompact                            < 2e-16 ***
+fibrosis_typeinterstitial                      3.15e-06 ***
+fibrosis_typepatchy                             < 2e-16 ***
+ScenarioFocal Lesion                            < 2e-16 ***
+fibrosis_typecompact:ScenarioFocal Lesion        0.9548
+fibrosis_typeinterstitial:ScenarioFocal Lesion   0.3213
+fibrosis_typepatchy:ScenarioFocal Lesion         0.0697 .
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+(Dispersion parameter for binomial family taken to be 1)
+
+    Null deviance: 1876.3  on 75  degrees of freedom
+Residual deviance: 1012.9  on 68  degrees of freedom
+AIC:  1237.4
+
+Type of estimator: AS_mixed (mixed bias-reducing adjusted score equations)
+Number of Fisher Scoring iterations: 2
+
+----------------------------------------------------------
+--- MODEL 3: GAM DENSITY DEPENDENCE & WINDOW SHIFT ---
+Peak Vulnerability Density (Right-Shift Analysis):
+         Scenario fibrosis_type Peak_Density Max_Probability
+1 Global Fibrosis       diffuse    0.3487437      0.25841576
+2 Global Fibrosis  interstitial    0.3261307      0.14333181
+3 Global Fibrosis        patchy    0.2967337      0.06964954
+4    Focal Lesion       diffuse    0.3547739      0.08614618
+5    Focal Lesion  interstitial    0.3929648      0.04643762
+6    Focal Lesion        patchy    0.4633166      0.01807635
+
+[GAM Summary: Global Fibrosis]
+
+Family: quasibinomial
+Link function: logit
+
+Formula:
+cbind(successes, failures) ~ fibrosis_type + s(density, by = fibrosis_type,
+    k = 5)
+
+Parametric coefficients:
+                          Estimate Std. Error t value Pr(>|t|)
+(Intercept)               -3.43250    0.17007 -20.183 1.54e-13 ***
+fibrosis_typeinterstitial -0.01282    0.22097  -0.058   0.9544
+fibrosis_typepatchy       -0.47506    0.23286  -2.040   0.0568 .
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Approximate significance of smooth terms:
+                                       edf Ref.df     F  p-value
+s(density):fibrosis_typediffuse      3.409  3.809 43.87  < 2e-16 ***
+s(density):fibrosis_typeinterstitial 3.118  3.611 25.59 5.20e-07 ***
+s(density):fibrosis_typepatchy       3.025  3.534 12.73 9.72e-05 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+R-sq.(adj) =  0.958   Deviance explained = 97.4%
+GCV = 2.2858  Scale est. = 1.2901    n = 30
+
+[GAM Summary: Focal Lesion]
+
+Family: quasibinomial
+Link function: logit
+
+Formula:
+cbind(successes, failures) ~ fibrosis_type + s(density, by = fibrosis_type,
+    k = 5)
+
+Parametric coefficients:
+                          Estimate Std. Error t value Pr(>|t|)
+(Intercept)                -4.8459     0.4712 -10.284 8.46e-08 ***
+fibrosis_typeinterstitial   0.4264     0.5049   0.844    0.413
+fibrosis_typepatchy        -1.2401     0.8354  -1.484    0.160
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Approximate significance of smooth terms:
+                                       edf Ref.df      F  p-value
+s(density):fibrosis_typediffuse      3.779  3.963 14.084 0.000134 ***
+s(density):fibrosis_typeinterstitial 2.769  3.308 11.768 0.000351 ***
+s(density):fibrosis_typepatchy       3.823  3.976  1.831 0.176398
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+R-sq.(adj) =  0.907   Deviance explained = 95.8%
+GCV = 1.7965  Scale est. = 0.92065   n = 27

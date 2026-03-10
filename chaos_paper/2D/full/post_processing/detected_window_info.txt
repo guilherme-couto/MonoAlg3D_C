@@ -1,2 +1,0 @@
-Detected Min Density: 0.1
-Detected Max Density: 0.55

@@ -451,7 +451,8 @@ if __name__ == "__main__":
     # Seeds
     master_seed = 20260101 # Happy New Year 2026!
     rng = np.random.default_rng(master_seed)
-    seeds = rng.integers(low=1, high=9999999999, size=args.num_seeds).tolist()
+    # seeds = rng.integers(low=1, high=99999, size=args.num_seeds).tolist()
+    seeds = rng.choice(99999, size=args.num_seeds, replace=False).tolist() # Unique seeds only
 
     # Build Meshes Configuration
     mesh_config = {}

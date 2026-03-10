@@ -1,0 +1,5 @@
+fibrosis_type,auc,mean_intensity
+diffuse,0.0154,0.0342
+interstitial,0.0085,0.0192
+patchy,0.0034,0.0078
+compact,0.0001,0.0003

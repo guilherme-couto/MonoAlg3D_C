@@ -1,0 +1,57 @@
+==========================================================
+       AUTOMATED STATISTICAL FRAMEWORK (GAM + FIRTH)
+==========================================================
+
+1. DIAGNOSTIC SUMMARY
+  fibrosis_type Total_Successes
+1       diffuse             333
+2       compact               4
+3  interstitial             226
+4        patchy             121
+
+Analysis Strategy:
+ - Global Risk Comparison: Firth's Bias Reduction (All Types)
+ - Density Curve Shape: GAM Splines (Only Types with > 5 events)
+
+----------------------------------------------------------
+2. GLOBAL RISK HIERARCHY (FIRTH RESULTS)
+                                  OR       2.5 %     97.5 %
+(Intercept)               0.09093388 0.081289774 0.10172215
+fibrosis_typecompact      0.01238246 0.004878985 0.03142567
+fibrosis_typeinterstitial 0.65990749 0.554080381 0.78594716
+fibrosis_typepatchy       0.34440925 0.278457156 0.42598198
+
+(Significance):
+              (Intercept)      fibrosis_typecompact fibrosis_typeinterstitial
+             0.000000e+00              2.427824e-20              3.149015e-06
+      fibrosis_typepatchy
+             8.501280e-23
+
+----------------------------------------------------------
+3. DENSITY DEPENDENCE (GAM RESULTS)
+
+Family: quasibinomial
+Link function: logit
+
+Formula:
+cbind(successes, failures) ~ fibrosis_type + s(density, by = fibrosis_type,
+    k = 5)
+
+Parametric coefficients:
+                          Estimate Std. Error t value Pr(>|t|)
+(Intercept)               -3.43250    0.17007 -20.183 1.54e-13 ***
+fibrosis_typeinterstitial -0.01282    0.22097  -0.058   0.9544
+fibrosis_typepatchy       -0.47506    0.23286  -2.040   0.0568 .
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Approximate significance of smooth terms:
+                                       edf Ref.df     F  p-value
+s(density):fibrosis_typediffuse      3.409  3.809 43.87  < 2e-16 ***
+s(density):fibrosis_typeinterstitial 3.118  3.611 25.59 5.20e-07 ***
+s(density):fibrosis_typepatchy       3.025  3.534 12.73 9.72e-05 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+R-sq.(adj) =  0.958   Deviance explained = 97.4%
+GCV = 2.2858  Scale est. = 1.2901    n = 30
