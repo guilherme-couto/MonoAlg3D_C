@@ -26,9 +26,10 @@ cat("--- STARTING GENERIC ANALYSIS ---\n")
 data <- read.csv(file_path)
 data$fibrosis_type <- as.factor(data$fibrosis_type)
 
-# Define Reference
-if ("diffuse" %in% levels(data$fibrosis_type)) {
-  data$fibrosis_type <- relevel(data$fibrosis_type, ref = "diffuse")
+# DEFINE REFERENCE
+reference_fib = "stochastic"
+if (reference_fib %in% levels(data$fibrosis_type)) {
+  data$fibrosis_type <- relevel(data$fibrosis_type, ref = reference_fib)
 }
 
 # --- STEP 1: AUTOMATIC DIAGNOSIS ---
@@ -172,8 +173,8 @@ if (!is.null(plot_data)) {
   p <- ggplot(plot_data, aes(x = density, y = prob, color = fibrosis_type, fill = fibrosis_type)) +
     geom_line(linewidth = 1.2) +
     geom_ribbon(aes(ymin = ci_lower, ymax = ci_upper), alpha = 0.2, color = NA) +
-    scale_color_manual(values = c("compact"="#0000a2", "diffuse"="#50ad9f", "interstitial"="#e9c716", "patchy"="#bc272d")) +
-    scale_fill_manual(values = c("compact"="#0000a2", "diffuse"="#50ad9f", "interstitial"="#e9c716", "patchy"="#bc272d")) +
+    scale_color_manual(values = c("stochastic"="#444444", "compact"="#0000a2", "diffuse"="#50ad9f", "interstitial"="#e9c716", "patchy"="#bc272d")) +
+    scale_fill_manual(values = c("stochastic"="#444444", "compact"="#0000a2", "diffuse"="#50ad9f", "interstitial"="#e9c716", "patchy"="#bc272d")) +
 
     labs(title = "Statistical Model of Arrhythmia Risk",
          x = "Fibrosis Density", y = "Probability of Sustained Reentry") +
@@ -211,11 +212,11 @@ if (!is.null(odds_ratios)) {
   or_df <- or_df %>% filter(fibrosis_type != "(Intercept)")
   or_df$fibrosis_type <- gsub("fibrosis_type", "", or_df$fibrosis_type)
 
-  # Add reference (Diffuse = 1.0)
-  ref_row <- data.frame(OR = 1.0, `2.5 %` = 1.0, `97.5 %` = 1.0, fibrosis_type = "diffuse", check.names = FALSE)
+  # ADD REFERENCE (OR = 1.0)
+  ref_row <- data.frame(OR = 1.0, `2.5 %` = 1.0, `97.5 %` = 1.0, fibrosis_type = reference_fib, check.names = FALSE)
   or_df <- rbind(or_df, ref_row)
 
-  or_df$fibrosis_type <- factor(or_df$fibrosis_type, levels = rev(c("compact", "diffuse", "interstitial", "patchy")))
+  or_df$fibrosis_type <- factor(or_df$fibrosis_type, levels = rev(c("stochastic", "compact", "diffuse", "interstitial", "patchy")))
 
   colnames(or_df)[2] <- "lower_ci"
   colnames(or_df)[3] <- "upper_ci"
@@ -226,14 +227,14 @@ if (!is.null(odds_ratios)) {
 
     geom_pointrange(aes(xmin = lower_ci, xmax = upper_ci), size = 1.2, linewidth = 1.2) +
 
-    scale_color_manual(values = c("compact"="#0000a2", "diffuse"="#50ad9f", "interstitial"="#e9c716", "patchy"="#bc272d")) +
+    scale_color_manual(values = c("stochastic"="#444444", "compact"="#0000a2", "diffuse"="#50ad9f", "interstitial"="#e9c716", "patchy"="#bc272d")) +
 
     scale_x_log10(breaks = c(0.01, 0.1, 0.5, 1.0, 2.0), labels = scales::label_number(accuracy = 0.01)) +
 
     labs(title = "Relative Arrhythmia Risk",
          subtitle = "Odds Ratios with 95% Confidence Intervals",
          x = "Odds Ratio (Log Scale)\n<-- Protective Effect | Increased Risk -->",
-         y = "") +
+         y = "Fibrosis Pattern") +
 
     theme_minimal(base_family = "sans", base_size = 14) +
     theme(axis.text.x = element_text(size = 14, color = "black", face = "bold"),

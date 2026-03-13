@@ -1,0 +1,61 @@
+==========================================================
+       AUTOMATED STATISTICAL FRAMEWORK (GAM + FIRTH)
+==========================================================
+
+1. DIAGNOSTIC SUMMARY
+  fibrosis_type Total_Successes
+1    stochastic             284
+2       compact               4
+3       diffuse             333
+4  interstitial             226
+5        patchy             121
+
+Analysis Strategy:
+ - Global Risk Comparison: Firth's Bias Reduction (All Types)
+ - Density Curve Shape: GAM Splines (Only Types with > 5 events)
+
+----------------------------------------------------------
+2. GLOBAL RISK HIERARCHY (FIRTH RESULTS)
+                                  OR      2.5 %     97.5 %
+(Intercept)               0.07655052 0.06785479 0.08636062
+fibrosis_typecompact      0.01470905 0.00578959 0.03736984
+fibrosis_typediffuse      1.18789371 1.00756227 1.40050050
+fibrosis_typeinterstitial 0.78389996 0.65454652 0.93881662
+fibrosis_typepatchy       0.40912158 0.32926413 0.50834710
+
+(Significance):
+              (Intercept)      fibrosis_typecompact      fibrosis_typediffuse
+             0.000000e+00              7.366761e-19              4.039895e-02
+fibrosis_typeinterstitial       fibrosis_typepatchy
+             8.141822e-03              7.221564e-16
+
+----------------------------------------------------------
+3. DENSITY DEPENDENCE (GAM RESULTS)
+
+Family: quasibinomial
+Link function: logit
+
+Formula:
+cbind(successes, failures) ~ fibrosis_type + s(density, by = fibrosis_type,
+    k = 5)
+
+Parametric coefficients:
+                          Estimate Std. Error t value Pr(>|t|)
+(Intercept)                -76.840      7.872  -9.761 1.80e-09 ***
+fibrosis_typediffuse        73.391      7.874   9.321 4.13e-09 ***
+fibrosis_typeinterstitial   73.374      7.874   9.319 4.14e-09 ***
+fibrosis_typepatchy         72.910      7.874   9.260 4.63e-09 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Approximate significance of smooth terms:
+                                       edf Ref.df     F  p-value
+s(density):fibrosis_typestochastic   3.989  4.000 42.12  < 2e-16 ***
+s(density):fibrosis_typediffuse      3.496  3.858 50.50  < 2e-16 ***
+s(density):fibrosis_typeinterstitial 3.240  3.701 28.75 5.25e-08 ***
+s(density):fibrosis_typepatchy       3.190  3.665 14.21 1.29e-05 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+R-sq.(adj) =  0.983   Deviance explained = 98.8%
+GCV = 1.8319  Scale est. = 1.1042    n = 40

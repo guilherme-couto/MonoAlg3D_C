@@ -27,7 +27,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # Directory where the R script will look for the CSV and save results
-OUTPUT_DIR="./$DIM/$GEOM/post_processing"
+OUTPUT_DIR="./$DIM/$GEOM/post_processing_stochastic"
 
 # 2. Execute R script (Inferential Statistics and Forest Plot)
 echo "[2/2] Running R (Inferential Statistics and Forest Plot)..."

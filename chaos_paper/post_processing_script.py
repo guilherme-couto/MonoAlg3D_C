@@ -25,13 +25,13 @@ plt.rcParams.update({
 
 FIBROSIS_PALETTE = {
     'compact': '#0000a2', 'diffuse': '#50ad9f',
-    'interstitial': '#e9c716', 'patchy': '#bc272d'
+    'interstitial': '#e9c716', 'patchy': '#bc272d', 'stochastic': '#444444',
 }
 
-CATEGORY_ORDER = ['compact', 'diffuse', 'interstitial', 'patchy']
+CATEGORY_ORDER = ['stochastic', 'compact', 'diffuse', 'interstitial', 'patchy']
 
 def parse_arguments():
-    parser = argparse.ArgumentParser(description="Analysis V8: Window-Focused Metrics")
+    parser = argparse.ArgumentParser(description="Analysis: Window-Focused Metrics")
     parser.add_argument('--root_dir', type=str, default='.', help="Root dir")
     parser.add_argument('--dim', type=str, required=True, choices=['2D', '3D'])
     parser.add_argument('--geom', type=str, required=True, choices=['full', 'ellipse'])
@@ -220,7 +220,7 @@ def main():
     args = parse_arguments()
     base = os.path.join(args.root_dir, args.dim, args.geom)
     csv_path = os.path.join(base, "analysis", "simulation_results.csv")
-    out_dir = os.path.join(base, "post_processing")
+    out_dir = os.path.join(base, "post_processing_stochastic")
     os.makedirs(out_dir, exist_ok=True)
 
     # 1. Load & Detect
