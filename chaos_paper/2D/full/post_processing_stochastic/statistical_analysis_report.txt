@@ -16,6 +16,8 @@ Analysis Strategy:
 
 ----------------------------------------------------------
 2. GLOBAL RISK HIERARCHY (FIRTH RESULTS)
+Reference Baseline: Stochastic (OR = 1.0)
+
                                   OR      2.5 %     97.5 %
 (Intercept)               0.07655052 0.06785479 0.08636062
 fibrosis_typecompact      0.01470905 0.00578959 0.03736984

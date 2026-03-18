@@ -1,0 +1,149 @@
+==========================================================
+          SCENARIO COMPARISON STATISTICAL REPORT
+==========================================================
+
+--- MODEL 1: ABSOLUTE RISK HIERARCHY (FIRTH) ---
+Absolute Baseline: Diffuse|Global Fibrosis (OR = 1.0)
+
+                                          fibrosis_type        Scenario
+type_scenarioCompact|Focal Lesion               Compact    Focal Lesion
+type_scenarioCompact|Global Fibrosis            Compact Global Fibrosis
+type_scenarioDiffuse|Focal Lesion               Diffuse    Focal Lesion
+type_scenarioInterstitial|Focal Lesion     Interstitial    Focal Lesion
+type_scenarioInterstitial|Global Fibrosis  Interstitial Global Fibrosis
+type_scenarioPatchy|Focal Lesion                 Patchy    Focal Lesion
+type_scenarioPatchy|Global Fibrosis              Patchy Global Fibrosis
+type_scenarioStochastic|Focal Lesion         Stochastic    Focal Lesion
+type_scenarioStochastic|Global Fibrosis      Stochastic Global Fibrosis
+1                                               Diffuse Global Fibrosis
+                                                  OR     lower_ci   upper_ci
+type_scenarioCompact|Focal Lesion         0.00458272 0.0009208227 0.02280713
+type_scenarioCompact|Global Fibrosis      0.01238246 0.0048789845 0.03142567
+type_scenarioDiffuse|Focal Lesion         0.39054772 0.3160558822 0.48259668
+type_scenarioInterstitial|Focal Lesion    0.21642124 0.1664428681 0.28140679
+type_scenarioInterstitial|Global Fibrosis 0.65990749 0.5540803807 0.78594716
+type_scenarioPatchy|Focal Lesion          0.08772975 0.0596767640 0.12896995
+type_scenarioPatchy|Global Fibrosis       0.34440925 0.2784571561 0.42598198
+type_scenarioStochastic|Focal Lesion      0.30603900 0.2430650782 0.38532837
+type_scenarioStochastic|Global Fibrosis   0.84182616 0.7140304493 0.99249449
+1                                         1.00000000 1.0000000000 1.00000000
+
+----------------------------------------------------------
+--- MODEL 2: SCENARIO-TYPE INTERACTION ANALYSIS (FIRTH) ---
+
+Call:
+glm(formula = cbind(successes, failures) ~ fibrosis_type * Scenario,
+    family = binomial(link = "logit"), data = data_combined,
+    method = "brglmFit")
+
+Deviance Residuals:
+    Min       1Q   Median       3Q      Max
+-7.7745  -4.6861  -0.9488   1.1697  19.4481
+
+Coefficients:
+                                               Estimate Std. Error z value
+(Intercept)                                    -2.39762    0.05720 -41.916
+fibrosis_typeStochastic                        -0.17218    0.08401  -2.050
+fibrosis_typeCompact                           -4.39147    0.47518  -9.242
+fibrosis_typeInterstitial                      -0.41566    0.08918  -4.661
+fibrosis_typePatchy                            -1.06592    0.10845  -9.828
+ScenarioFocal Lesion                           -0.94021    0.10798  -8.707
+fibrosis_typeStochastic:ScenarioFocal Lesion   -0.07166    0.16121  -0.444
+fibrosis_typeCompact:ScenarioFocal Lesion      -0.05378    0.94938  -0.057
+fibrosis_typeInterstitial:ScenarioFocal Lesion -0.17467    0.17611  -0.992
+fibrosis_typePatchy:ScenarioFocal Lesion       -0.42736    0.23564  -1.814
+                                               Pr(>|z|)
+(Intercept)                                     < 2e-16 ***
+fibrosis_typeStochastic                          0.0404 *
+fibrosis_typeCompact                            < 2e-16 ***
+fibrosis_typeInterstitial                      3.15e-06 ***
+fibrosis_typePatchy                             < 2e-16 ***
+ScenarioFocal Lesion                            < 2e-16 ***
+fibrosis_typeStochastic:ScenarioFocal Lesion     0.6567
+fibrosis_typeCompact:ScenarioFocal Lesion        0.9548
+fibrosis_typeInterstitial:ScenarioFocal Lesion   0.3213
+fibrosis_typePatchy:ScenarioFocal Lesion         0.0697 .
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+(Dispersion parameter for binomial family taken to be 1)
+
+    Null deviance: 3219.5  on 94  degrees of freedom
+Residual deviance: 2205.0  on 85  degrees of freedom
+AIC:  2470.3
+
+Type of estimator: AS_mixed (mixed bias-reducing adjusted score equations)
+Number of Fisher Scoring iterations: 2
+
+----------------------------------------------------------
+--- MODEL 3: GAM DENSITY DEPENDENCE & WINDOW SHIFT ---
+Peak Vulnerability Density (Right-Shift Analysis):
+         Scenario Fibrosis_Pattern Peak_Density Max_Probability
+1 Global Fibrosis       Stochastic    0.2311558      0.65809222
+2 Global Fibrosis          Diffuse    0.3487437      0.25942485
+3 Global Fibrosis     Interstitial    0.3238693      0.14379380
+4 Global Fibrosis           Patchy    0.2944724      0.07018779
+5    Focal Lesion       Stochastic    0.3809045      0.99972332
+6    Focal Lesion          Diffuse    0.3547739      0.08572048
+7    Focal Lesion     Interstitial    0.3929648      0.04683491
+8    Focal Lesion           Patchy    0.4633166      0.01838866
+
+[GAM Summary: Global Fibrosis ]
+
+Family: quasibinomial
+Link function: logit
+
+Formula:
+cbind(successes, failures) ~ fibrosis_type + s(density, by = fibrosis_type,
+    k = 5)
+
+Parametric coefficients:
+                           Estimate Std. Error t value Pr(>|t|)
+(Intercept)                -3.44879    0.16184 -21.309 3.22e-16 ***
+fibrosis_typeStochastic   -73.39122    7.87402  -9.321 4.13e-09 ***
+fibrosis_typeInterstitial  -0.01701    0.21062  -0.081   0.9363
+fibrosis_typePatchy        -0.48082    0.22189  -2.167   0.0413 *
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Approximate significance of smooth terms:
+                                       edf Ref.df     F  p-value
+s(density):fibrosis_typeDiffuse      3.496  3.858 50.50  < 2e-16 ***
+s(density):fibrosis_typeStochastic   3.989  4.000 42.12  < 2e-16 ***
+s(density):fibrosis_typeInterstitial 3.240  3.701 28.75 5.25e-08 ***
+s(density):fibrosis_typePatchy       3.190  3.665 14.21 1.29e-05 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+R-sq.(adj) =  0.983   Deviance explained = 98.8%
+GCV = 1.8319  Scale est. = 1.1042    n = 40
+
+[GAM Summary: Focal Lesion ]
+
+Family: quasibinomial
+Link function: logit
+
+Formula:
+cbind(successes, failures) ~ fibrosis_type + s(density, by = fibrosis_type,
+    k = 5)
+
+Parametric coefficients:
+                           Estimate Std. Error t value Pr(>|t|)
+(Intercept)                 -4.8954     0.4684 -10.451 5.83e-09 ***
+fibrosis_typeStochastic   -966.0248  1119.4105  -0.863    0.400
+fibrosis_typeInterstitial    0.4588     0.5001   0.917    0.371
+fibrosis_typePatchy         -1.2505     0.8291  -1.508    0.149
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Approximate significance of smooth terms:
+                                       edf Ref.df      F  p-value
+s(density):fibrosis_typeDiffuse      3.826  3.977 15.226 2.13e-05 ***
+s(density):fibrosis_typeStochastic   3.903  3.991 14.357 1.99e-05 ***
+s(density):fibrosis_typeInterstitial 2.861  3.393 12.757 8.08e-05 ***
+s(density):fibrosis_typePatchy       3.858  3.984  2.018    0.133
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+R-sq.(adj) =  0.961   Deviance explained = 97.9%
+GCV = 1.4135  Scale est. = 0.82339   n = 36

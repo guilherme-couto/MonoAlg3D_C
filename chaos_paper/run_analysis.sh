@@ -16,9 +16,11 @@ echo "========================================"
 echo " Initializing Analysis for $DIM - $GEOM"
 echo "========================================"
 
+OUTPUT_DIR_NAME="post_processing"
+
 # 1. Execute Python script (Create CSV, Pointplot, Curves and AUC Bars)
-echo "[1/2] Running Python (Processing, AUC and Curves)..."
-python3 post_processing_script.py --dim "$DIM" --geom "$GEOM"
+echo "[1/2] Running Python..."
+python3 post_processing_script.py --dim "$DIM" --geom "$GEOM" --output_dir "$OUTPUT_DIR_NAME"
 
 # Check if the Python script executed successfully
 if [ $? -ne 0 ]; then
@@ -27,11 +29,11 @@ if [ $? -ne 0 ]; then
 fi
 
 # Directory where the R script will look for the CSV and save results
-OUTPUT_DIR="./$DIM/$GEOM/post_processing_stochastic"
+OUTPUT_DIR="./$DIM/$GEOM/$OUTPUT_DIR_NAME"
 
 # 2. Execute R script (Inferential Statistics and Forest Plot)
-echo "[2/2] Running R (Inferential Statistics and Forest Plot)..."
-Rscript gam_firth_analysis.R "$OUTPUT_DIR"
+echo "[2/2] Running R..."
+Rscript statistical_analysis.R "$OUTPUT_DIR"
 
 echo "========================================"
 echo " Analysis Completed for $DIM - $GEOM"

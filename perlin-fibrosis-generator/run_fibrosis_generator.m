@@ -232,6 +232,10 @@ function params3D = convert_params_2D_to_3D(params2D)
     % Convert parameters as needed in moving from 2D to 3D.
     % 2D: [fibreness, fibre_sep, patchiness, feature_size, roughness, patch_size, alignment, orientation]
     % 3D: [fibreness, fibre_sep_y, patchiness, feature_size, roughness, patch_size, alignment_y, fibre_sep_z, alignment_z, phi, theta]
+    % (phi and theta are the two angles that define the fibre direction in three dimensions)
+    % (properties with an appended _y or _z refer to that property in that direction, before rotation)
+    % The new rotation matrix R(phi, theta) corresponds to the longitudinal direction being initially oriented along the x-axis,
+    % first rotated an angle of phi around the z-axis, and then by an angle of theta around the new y-axis
 
     % Base parameters
     fibreness     = params2D(1);
