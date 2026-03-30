@@ -1,0 +1,99 @@
+==========================================================
+       STATISTICAL FRAMEWORK - SCENARIO III    
+==========================================================
+
+1. DIAGNOSTIC SUMMARY & GAM WINDOW
+  fibrosis_type Total_Successes
+1       Uniform             149
+2       Compact               5
+3       Diffuse             252
+4  Interstitial             195
+5        Patchy             150
+
+GAM Filtering Logic:
+ - Active Types (fitted): Uniform, Diffuse, Interstitial, Patchy
+ - Final GAM Analysis Window (with 0.05 padding): [ 0.45 , 0.95 ]
+
+----------------------------------------------------------
+2. GLOBAL RISK HIERARCHY (FIRTH RESULTS)
+Reference Baseline: Uniform (OR = 1.0)
+
+                                  OR      2.5 %     97.5 %
+(Intercept)               0.02006307 0.01706403 0.02358921
+fibrosis_typeCompact      0.03609182 0.01540119 0.08457915
+fibrosis_typeDiffuse      1.71263651 1.39544029 2.10193430
+fibrosis_typeInterstitial 1.31581517 1.06086463 1.63203627
+fibrosis_typePatchy       1.00682408 0.80107618 1.26541614
+
+(Significance p-values):
+              (Intercept)      fibrosis_typeCompact      fibrosis_typeDiffuse
+             0.000000e+00              2.094331e-14              2.626405e-07
+fibrosis_typeInterstitial       fibrosis_typePatchy
+             1.250188e-02              9.535022e-01
+
+----------------------------------------------------------
+3. GAM RESULTS (MODEL: ALL PATTERNS)
+
+Family: quasibinomial
+Link function: logit
+
+Formula:
+cbind(successes, failures) ~ fibrosis_type + s(density, by = fibrosis_type,
+    k = 5)
+
+Parametric coefficients:
+                          Estimate Std. Error t value Pr(>|t|)
+(Intercept)                 -34.14      18.61  -1.835   0.0781 .
+fibrosis_typeDiffuse         29.24      18.61   1.571   0.1283
+fibrosis_typeInterstitial    28.62      18.61   1.538   0.1363
+fibrosis_typePatchy          29.44      18.61   1.582   0.1258
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Approximate significance of smooth terms:
+                                       edf Ref.df     F  p-value
+s(density):fibrosis_typeUniform      2.909  3.045 21.70 1.45e-06 ***
+s(density):fibrosis_typeDiffuse      3.878  3.990 67.10  < 2e-16 ***
+s(density):fibrosis_typeInterstitial 3.818  3.978 64.09  < 2e-16 ***
+s(density):fibrosis_typePatchy       3.629  3.914 49.55  < 2e-16 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+R-sq.(adj) =  0.993   Deviance explained = 99.2%
+GCV = 0.91873  Scale est. = 0.61326   n = 44
+
+----------------------------------------------------------
+4. GAM RESULTS (MODEL: REALISTIC PATTERNS ONLY)
+Estimated Peak Vulnerability:
+  fibrosis_type   density      prob  ci_lower  ci_upper
+1       Diffuse 0.7590452 0.2227074 0.1974420 0.2501981
+2  Interstitial 0.7816583 0.2191934 0.1920346 0.2490094
+3        Patchy 0.7891960 0.1339619 0.1145616 0.1560684
+
+[GAM Summary]
+
+Family: quasibinomial
+Link function: logit
+
+Formula:
+cbind(successes, failures) ~ fibrosis_type + s(density, by = fibrosis_type,
+    k = 5)
+
+Parametric coefficients:
+                          Estimate Std. Error t value Pr(>|t|)
+(Intercept)                -4.8683     0.3274 -14.870 7.26e-12 ***
+fibrosis_typeInterstitial  -0.6246     0.5172  -1.208    0.242
+fibrosis_typePatchy         0.1717     0.4067   0.422    0.678
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Approximate significance of smooth terms:
+                                       edf Ref.df     F p-value
+s(density):fibrosis_typeDiffuse      3.840  3.983 59.81  <2e-16 ***
+s(density):fibrosis_typeInterstitial 3.765  3.964 56.96  <2e-16 ***
+s(density):fibrosis_typePatchy       3.543  3.873 44.30  <2e-16 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+R-sq.(adj) =  0.989   Deviance explained = 98.8%
+GCV =  1.279  Scale est. = 0.69959   n = 33

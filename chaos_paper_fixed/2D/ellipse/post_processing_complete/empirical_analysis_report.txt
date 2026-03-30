@@ -1,0 +1,103 @@
+==========================================================
+      EMPIRICAL ANALYSIS REPORT - SCENARIO II
+==========================================================
+
+1. DATASET OVERVIEW
+Total rows analyzed: 38000
+Full Dataset Range: [0.05, 0.95]
+Core Active Window (Arrhythmia Detected): [0.20, 0.60]
+Padded Window Used for Plots (pad=0.05): [0.15, 0.65]
+
+--- Samples per Fibrosis Type ---
+fibrosis_type
+Compact         7600
+Diffuse         7600
+Interstitial    7600
+Patchy          7600
+Uniform         7600
+
+--- Samples per Angle & Fibrosis Type ---
+fibrosis_type  fiber_angle_deg
+Compact        0                  1900
+               30                 1900
+               60                 1900
+               90                 1900
+Diffuse        0                  1900
+               30                 1900
+               60                 1900
+               90                 1900
+Interstitial   0                  1900
+               30                 1900
+               60                 1900
+               90                 1900
+Patchy         0                  1900
+               30                 1900
+               60                 1900
+               90                 1900
+Uniform        0                  1900
+               30                 1900
+               60                 1900
+               90                 1900
+
+----------------------------------------------------------
+2. VULNERABILITY WINDOWS (INTERVALS & SIZE PER PATTERN)
+Uniform:
+  Intervals: [0.25 - 0.40] (size: 0.15)
+  Total active densities: 4
+
+Compact:
+  Intervals: [0.50 - 0.50] (size: 0.00)
+  Total active densities: 1
+
+Diffuse:
+  Intervals: [0.25 - 0.60] (size: 0.35)
+  Total active densities: 8
+
+Interstitial:
+  Intervals: [0.20 - 0.55] (size: 0.35)
+  Total active densities: 8
+
+Patchy:
+  Intervals: [0.20 - 0.50] (size: 0.30)
+  Total active densities: 7
+
+----------------------------------------------------------
+3. EMPIRICAL INCIDENCE (Total Events by Type)
+fibrosis_type
+Compact           1
+Diffuse         158
+Interstitial     87
+Patchy           28
+Uniform         158
+
+----------------------------------------------------------
+4. SUSTAINED REENTRIES PER DENSITY (Count > 0)
+fibrosis_type  density
+Compact        0.50        1
+Diffuse        0.25       11
+               0.30       28
+               0.35       34
+               0.40       48
+               0.45       23
+               0.50       11
+               0.55        2
+               0.60        1
+Interstitial   0.20        1
+               0.25        2
+               0.30        9
+               0.35       16
+               0.40       27
+               0.45       21
+               0.50       10
+               0.55        1
+Patchy         0.20        1
+               0.25        1
+               0.30        3
+               0.35        4
+               0.40        6
+               0.45        9
+               0.50        4
+Uniform        0.25       65
+               0.30        1
+               0.35       26
+               0.40       66

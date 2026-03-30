@@ -1,5 +1,4 @@
 fibrosis_type,density,trials,successes,failures
-Compact,0.05,400,0,400
 Compact,0.1,400,0,400
 Compact,0.15,400,1,399
 Compact,0.2,400,1,399
@@ -10,8 +9,6 @@ Compact,0.4,400,0,400
 Compact,0.45,400,0,400
 Compact,0.5,400,0,400
 Compact,0.55,400,0,400
-Compact,0.6,400,0,400
-Diffuse,0.05,400,0,400
 Diffuse,0.1,400,2,398
 Diffuse,0.15,400,3,397
 Diffuse,0.2,400,7,393
@@ -22,8 +19,6 @@ Diffuse,0.4,400,86,314
 Diffuse,0.45,400,17,383
 Diffuse,0.5,400,3,397
 Diffuse,0.55,400,1,399
-Diffuse,0.6,400,0,400
-Interstitial,0.05,400,0,400
 Interstitial,0.1,400,1,399
 Interstitial,0.15,400,4,396
 Interstitial,0.2,400,15,385
@@ -34,8 +29,6 @@ Interstitial,0.4,400,36,364
 Interstitial,0.45,400,16,384
 Interstitial,0.5,400,7,393
 Interstitial,0.55,400,0,400
-Interstitial,0.6,400,0,400
-Patchy,0.05,400,0,400
 Patchy,0.1,400,1,399
 Patchy,0.15,400,5,395
 Patchy,0.2,400,8,392
@@ -46,8 +39,6 @@ Patchy,0.4,400,14,386
 Patchy,0.45,400,9,391
 Patchy,0.5,400,3,397
 Patchy,0.55,400,1,399
-Patchy,0.6,400,0,400
-Stochastic,0.05,400,0,400
 Stochastic,0.1,400,0,400
 Stochastic,0.15,400,0,400
 Stochastic,0.2,400,6,394
@@ -58,4 +49,3 @@ Stochastic,0.4,400,2,398
 Stochastic,0.45,400,0,400
 Stochastic,0.5,400,0,400
 Stochastic,0.55,400,0,400
-Stochastic,0.6,400,0,400

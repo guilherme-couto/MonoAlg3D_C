@@ -5,6 +5,7 @@ octave-workspace
 # Large directories
 batch_test/
 chaos_patient_fibrosis/meshes
+comparativo_divergencia/
 
 # Executables
 *.exe

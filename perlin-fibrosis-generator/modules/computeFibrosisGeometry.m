@@ -108,10 +108,10 @@ function geometry = computeFibrosisGeometry(mesh, geom_cfg, bz_cfg)
         % 'euclidean' = smooth circles.
         dist_map = bwdist(core_mask, bz_cfg.metric);
 
-        % Convert distance to integer layers
+        % Convert distance to integer layers (discretize continuous distances)
         % Distance 0 = Inside Core
         % Distance 1 = Immediate neighbor (Layer 1)
-        layer_map = double(dist_map);
+        layer_map = ceil(double(dist_map));
 
         % Cap at max layers
         if isfield(bz_cfg, 'max_layers') && ~isinf(bz_cfg.max_layers)

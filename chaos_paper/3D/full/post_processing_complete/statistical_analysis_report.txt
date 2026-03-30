@@ -1,0 +1,95 @@
+==========================================================
+       AUTOMATED STATISTICAL FRAMEWORK (GAM + FIRTH)
+==========================================================
+
+1. DIAGNOSTIC SUMMARY (Absolute Arrhythmia Incidence)
+  fibrosis_type Total_Successes
+1    Stochastic             166
+2       Compact               2
+3       Diffuse             154
+4  Interstitial             137
+5        Patchy             117
+
+----------------------------------------------------------
+2. GLOBAL RISK HIERARCHY (FIRTH RESULTS)
+Reference Baseline: Stochastic (OR = 1.0)
+
+                                  OR       2.5 %     97.5 %
+(Intercept)               0.03931987 0.033678542 0.04590616
+fibrosis_typeCompact      0.01445517 0.004142652 0.05043920
+fibrosis_typeDiffuse      0.92530574 0.740301500 1.15654326
+fibrosis_typeInterstitial 0.82020862 0.651782658 1.03215723
+fibrosis_typePatchy       0.69763297 0.548797926 0.88683235
+
+(Significance p-values):
+              (Intercept)      fibrosis_typeCompact      fibrosis_typeDiffuse
+             0.000000e+00              3.041732e-11              4.951748e-01
+fibrosis_typeInterstitial       fibrosis_typePatchy
+             9.101487e-02              3.272507e-03
+
+----------------------------------------------------------
+3. GAM RESULTS (MODEL: ALL PATTERNS)
+
+[GAM Summary]
+
+Family: quasibinomial
+Link function: logit
+
+Formula:
+cbind(successes, failures) ~ fibrosis_type + s(density, by = fibrosis_type,
+    k = 5)
+
+Parametric coefficients:
+                          Estimate Std. Error t value Pr(>|t|)
+(Intercept)                 -30.83      32.78  -0.941    0.355
+fibrosis_typeDiffuse         25.74      32.78   0.785    0.439
+fibrosis_typeInterstitial    19.29      32.93   0.586    0.563
+fibrosis_typePatchy          25.71      32.78   0.784    0.440
+
+Approximate significance of smooth terms:
+                                       edf Ref.df      F p-value
+s(density):fibrosis_typeStochastic   2.329  2.662  1.655   0.126
+s(density):fibrosis_typeDiffuse      3.472  3.813 34.845  <2e-16 ***
+s(density):fibrosis_typeInterstitial 3.901  3.991 30.004  <2e-16 ***
+s(density):fibrosis_typePatchy       3.707  3.937 30.356  <2e-16 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+R-sq.(adj) =  0.987   Deviance explained = 98.9%
+GCV = 1.0142  Scale est. = 0.85904   n = 44
+
+----------------------------------------------------------
+4. GAM RESULTS (MODEL: REALISTIC PATTERNS ONLY)
+Estimated Peak Vulnerability (Density at max probability):
+  fibrosis_type   density      prob   ci_lower  ci_upper
+1       Diffuse 0.7391960 0.1360968 0.11302284 0.1630157
+2  Interstitial 0.7743719 0.1892376 0.15471797 0.2293692
+3        Patchy 0.7844221 0.1163141 0.09349562 0.1438182
+
+[GAM Summary]
+
+Family: quasibinomial
+Link function: logit
+
+Formula:
+cbind(successes, failures) ~ fibrosis_type + s(density, by = fibrosis_type,
+    k = 5)
+
+Parametric coefficients:
+                          Estimate Std. Error t value Pr(>|t|)
+(Intercept)               -5.04404    0.46568 -10.831  1.3e-09 ***
+fibrosis_typeInterstitial -6.19055    3.29377  -1.879   0.0755 .
+fibrosis_typePatchy       -0.04854    0.63186  -0.077   0.9396
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Approximate significance of smooth terms:
+                                       edf Ref.df     F p-value
+s(density):fibrosis_typeDiffuse      3.349  3.729 31.77  <2e-16 ***
+s(density):fibrosis_typeInterstitial 3.869  3.984 26.58  <2e-16 ***
+s(density):fibrosis_typePatchy       3.619  3.897 27.09  <2e-16 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+R-sq.(adj) =  0.975   Deviance explained =   98%
+GCV = 1.4926  Scale est. = 0.97476   n = 33

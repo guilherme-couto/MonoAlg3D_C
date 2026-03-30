@@ -12,11 +12,11 @@ if [ -z "$DIM" ] || [ -z "$GEOM" ]; then
     exit 1
 fi
 
-echo "========================================"
+echo "==================================================================="
 echo " Initializing Analysis for $DIM - $GEOM"
-echo "========================================"
+echo "==================================================================="
 
-OUTPUT_DIR_NAME="post_processing"
+OUTPUT_DIR_NAME="post_processing_complete"
 
 # 1. Execute Python script (Create CSV, Pointplot, Curves and AUC Bars)
 echo "[1/2] Running Python..."
@@ -35,7 +35,7 @@ OUTPUT_DIR="./$DIM/$GEOM/$OUTPUT_DIR_NAME"
 echo "[2/2] Running R..."
 Rscript statistical_analysis.R "$OUTPUT_DIR"
 
-echo "========================================"
+echo "==================================================================="
 echo " Analysis Completed for $DIM - $GEOM"
 echo " Results saved in: $OUTPUT_DIR"
-echo "========================================"
+echo "==================================================================="

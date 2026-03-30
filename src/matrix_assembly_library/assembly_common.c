@@ -108,241 +108,307 @@ static void add_single_entry(struct cell_node *from, struct cell_node *to, real_
     from->elements[0].value -= value;
 }
 
-// Helper function for harmonic mean of 4 values
-static real_cpu harmonic_mean_4(real_cpu a, real_cpu b, real_cpu c, real_cpu d) {
-    // Harmonic mean = 4 / (1/a + 1/b + 1/c + 1/d)
-    // Handle zero/small values to avoid division by zero
-    real_cpu eps = 1e-16;
-    if (fabs(a) < eps) a = eps;
-    if (fabs(b) < eps) b = eps;
-    if (fabs(c) < eps) c = eps;
-    if (fabs(d) < eps) d = eps;
+// -----------------------------------------------------------------------------
+// Diffusion / obstruction helpers
+// -----------------------------------------------------------------------------
+// A cell is considered "diffusive" if it is active AND has non-negligible
+// diagonal diffusion. This allows two equivalent ways to represent obstacles:
+//   (1) cell->active = false
+//   (2) keep active but set sigma.{x,y,z} = 0 (and optionally cross terms too)
+//
+// If you choose (2), this prevents tiny "eps" leakage across obstacle interfaces
+// when computing face averages.
+static inline bool is_diffusive_cell(const struct cell_node *c) {
+    if(!c || !c->active) return false;
 
-    return 4.0 / (1.0/a + 1.0/b + 1.0/c + 1.0/d);
+    const real_cpu SIGMA_EPS = 1e-18;
+    return (fabs(c->sigma.x) + fabs(c->sigma.y) + fabs(c->sigma.z)) > SIGMA_EPS;
 }
 
-static real_cpu harmonic_mean_2(real_cpu a, real_cpu b) {
-    // Handle zero/small values to avoid division by zero
-    real_cpu eps = 1e-16;
-    if (fabs(a) < eps) a = eps;
-    if (fabs(b) < eps) b = eps;
-    return 2.0 / (1.0/a + 1.0/b);
+// Harmonic mean for strictly positive diagonal diffusion coefficients
+// (used for sigma_xx on x-faces, sigma_yy on y-faces, sigma_zz on z-faces).
+// Returns 0 if either side is ~0 -> enforces no-flux for obstacles represented
+// by zero diffusion.
+static inline real_cpu harmonic_mean_2_pos(real_cpu a, real_cpu b) {
+    const real_cpu eps = 1e-18;
+    if(a <= eps || b <= eps) return 0.0;
+    return (2.0 * a * b) / (a + b);
+}
+
+// Cross terms (sigma_xy, sigma_xz, sigma_yz) may be negative depending on tensor
+// orientation. Harmonic means and eps-clamping can distort the sign.
+// Use a simple arithmetic mean of the four corner values.
+static inline real_cpu arithmetic_mean_4(real_cpu a, real_cpu b, real_cpu c, real_cpu d) {
+    return 0.25 * (a + b + c + d);
+}
+
+
+
+// -----------------------------------------------------------------------------
+// Anisotropic diffusion on regular cubes (finite volume, Neumann/no-flux)
+// -----------------------------------------------------------------------------
+//
+// IMPORTANT DESIGN CHOICES (robust with heterogeneity + random obstructions):
+// 1) We discretize the operator in *finite-volume flux form* for the full tensor:
+//       ∫_V ∇·(σ∇u) dV  =  -∑_faces F_face
+//    with diffusive flux (out of the cell)
+//       F_face = -A_face * (σ ∇u)_face · n_face
+//
+// 2) Neumann-only (your case): if a face has no valid neighbor (domain boundary
+//    OR obstacle), we simply SKIP the flux on that face -> no-flux.
+//
+// 3) Obstructions can be represented either by:
+//      (a) cell->active = false
+//      (b) keeping active but setting σ diagonal to ~0
+//    We treat both as non-diffusive via is_diffusive_cell().
+//
+// 4) Averaging on a face:
+//    - Normal component (σ_xx on x-faces, σ_yy on y-faces, σ_zz on z-faces):
+//        use 2-point harmonic mean (interface-limited, robust for jumps)
+//    - Off-diagonal components on that face (σ_xy, σ_xz, σ_yz):
+//        use 2-point arithmetic mean (preserves sign; harmonic is unsafe)
+//
+// 5) Tangential derivatives on a face:
+//    We approximate (∂u/∂tangent)_face = 0.5*( (∂u/∂tangent)_P + (∂u/∂tangent)_N )
+//    where each cell-centered derivative uses:
+//      - centered difference if both neighbors exist
+//      - otherwise a one-sided difference (still annihilates constants)
+//      - otherwise 0 (if both sides missing)
+//
+// This yields a 27-point stencil in the interior, and gracefully reduces near
+// obstacles/boundaries WITHOUT special cross-term stencils or diagonal hacks.
+
+static inline struct cell_node *diffusive_neighbour(struct cell_node *c, enum transition_direction dir) {
+    struct cell_node *n = get_cell_neighbour_with_same_refinement_level(c, dir);
+    return is_diffusive_cell(n) ? n : NULL;
+}
+
+// Add a stencil contribution into ROW.
+static inline void add_term(struct cell_node *row, struct cell_node *col, real_cpu value) {
+    if(!row || !col || fabs(value) < 1e-16) return;
+    if(col == row) return;          // diagonal is implied by add_single_entry's diag -= a_ij
+    add_single_entry(row, col, value);
+}
+
+// 2-point arithmetic mean (safe for off-diagonal tensor entries which may be signed).
+static inline real_cpu arithmetic_mean_2(real_cpu a, real_cpu b) {
+    return 0.5 * (a + b);
+}
+
+// -----------------------------------------------------------------------------
+// Cell-centered derivative helpers: add contributions of (∂u/∂x)_C, (∂u/∂y)_C, (∂u/∂z)_C
+// into the ROW equation of 'row' scaled by 'scale'.
+// -----------------------------------------------------------------------------
+
+static inline void accumulate_dudx_at_cell(struct cell_node *row, struct cell_node *C, real_cpu dx, real_cpu scale) {
+
+    struct cell_node *R = diffusive_neighbour(C, RIGHT);
+    struct cell_node *L = diffusive_neighbour(C, LEFT);
+
+    if(R && L) {
+        // centered: (u_R - u_L)/(2dx)
+        add_term(row, R,  scale * ( 1.0 / (2.0*dx)));
+        add_term(row, L,  scale * (-1.0 / (2.0*dx)));
+    }
+    else if(R) {
+        // forward: (u_R - u_C)/dx
+        add_term(row, R,  scale * ( 1.0 / dx));
+        add_term(row, C,  scale * (-1.0 / dx)); // if C==row, diagonal is implied
+    }
+    else if(L) {
+        // backward: (u_C - u_L)/dx
+        add_term(row, C,  scale * ( 1.0 / dx));
+        add_term(row, L,  scale * (-1.0 / dx));
+    }
+    // else: no information -> 0
+}
+
+static inline void accumulate_dudy_at_cell(struct cell_node *row, struct cell_node *C, real_cpu dy, real_cpu scale) {
+
+    struct cell_node *T = diffusive_neighbour(C, TOP);
+    struct cell_node *D = diffusive_neighbour(C, DOWN);
+
+    if(T && D) {
+        // centered: (u_T - u_D)/(2dy)
+        add_term(row, T,  scale * ( 1.0 / (2.0*dy)));
+        add_term(row, D,  scale * (-1.0 / (2.0*dy)));
+    }
+    else if(T) {
+        // forward: (u_T - u_C)/dy
+        add_term(row, T,  scale * ( 1.0 / dy));
+        add_term(row, C,  scale * (-1.0 / dy));
+    }
+    else if(D) {
+        // backward: (u_C - u_D)/dy
+        add_term(row, C,  scale * ( 1.0 / dy));
+        add_term(row, D,  scale * (-1.0 / dy));
+    }
+}
+
+static inline void accumulate_dudz_at_cell(struct cell_node *row, struct cell_node *C, real_cpu dz, real_cpu scale) {
+
+    struct cell_node *F = diffusive_neighbour(C, FRONT);
+    struct cell_node *B = diffusive_neighbour(C, BACK);
+
+    if(F && B) {
+        // centered: (u_F - u_B)/(2dz)
+        add_term(row, F,  scale * ( 1.0 / (2.0*dz)));
+        add_term(row, B,  scale * (-1.0 / (2.0*dz)));
+    }
+    else if(F) {
+        // forward: (u_F - u_C)/dz
+        add_term(row, F,  scale * ( 1.0 / dz));
+        add_term(row, C,  scale * (-1.0 / dz));
+    }
+    else if(B) {
+        // backward: (u_C - u_B)/dz
+        add_term(row, C,  scale * ( 1.0 / dz));
+        add_term(row, B,  scale * (-1.0 / dz));
+    }
+}
+
+// -----------------------------------------------------------------------------
+// Face flux assembly for a given row cell P
+// -----------------------------------------------------------------------------
+
+static inline void assemble_x_face_flux(struct cell_node *P, struct cell_node *N, bool is_right_face) {
+
+    // x-face area
+    const real_cpu dx = P->discretization.x;
+    const real_cpu dy = P->discretization.y;
+    const real_cpu dz = P->discretization.z;
+    const real_cpu A  = dy * dz;
+
+    // Face tensor row for x-normal face: [σxx, σxy, σxz]
+    const real_cpu s_xx = harmonic_mean_2_pos(P->sigma.x,  N->sigma.x);
+    const real_cpu s_xy = arithmetic_mean_2(P->sigma.xy, N->sigma.xy);
+    const real_cpu s_xz = arithmetic_mean_2(P->sigma.xz, N->sigma.xz);
+
+    // --------------------
+    // Normal part: -A*σxx*(∂u/∂x)_face
+    // We use (u_N - u_P)/dx on the right face, and (u_P - u_N)/dx on the left face.
+    // In BOTH cases the resulting coefficient for u_N in the row of P is:
+    //     -A * σxx / dx
+    // which matches the isotropic FV part of your previous code.
+    // --------------------
+    add_term(P, N, -s_xx * A / dx);
+
+    // --------------------
+    // Cross parts: -A * n_x * [ σxy * (∂u/∂y)_face + σxz * (∂u/∂z)_face ]
+    // with n_x = +1 (right face) or -1 (left face).
+    // So multiplier for tangential derivatives is:
+    //     mult = -A*n_x = (-A) on right, (+A) on left
+    // --------------------
+    const real_cpu mult = is_right_face ? (-A) : (+A);
+
+    // (∂u/∂y)_face ≈ 0.5*( (∂u/∂y)_P + (∂u/∂y)_N )
+    if(fabs(s_xy) > 0.0) {
+        const real_cpu scale = 0.5 * mult * s_xy;
+        accumulate_dudy_at_cell(P, P, dy, scale);
+        accumulate_dudy_at_cell(P, N, dy, scale);
+    }
+
+    // (∂u/∂z)_face ≈ 0.5*( (∂u/∂z)_P + (∂u/∂z)_N )
+    if(fabs(s_xz) > 0.0) {
+        const real_cpu scale = 0.5 * mult * s_xz;
+        accumulate_dudz_at_cell(P, P, dz, scale);
+        accumulate_dudz_at_cell(P, N, dz, scale);
+    }
+}
+
+static inline void assemble_y_face_flux(struct cell_node *P, struct cell_node *N, bool is_top_face) {
+
+    const real_cpu dx = P->discretization.x;
+    const real_cpu dy = P->discretization.y;
+    const real_cpu dz = P->discretization.z;
+    const real_cpu A  = dx * dz;
+
+    // y-face tensor row: [σyx, σyy, σyz] with σyx=σxy (symmetric tensor)
+    const real_cpu s_yy = harmonic_mean_2_pos(P->sigma.y,  N->sigma.y);
+    const real_cpu s_xy = arithmetic_mean_2(P->sigma.xy, N->sigma.xy);
+    const real_cpu s_yz = arithmetic_mean_2(P->sigma.yz, N->sigma.yz);
+
+    // Normal part: -A*σyy*(∂u/∂y)_face  -> coefficient to u_N is -A*σyy/dy
+    add_term(P, N, -s_yy * A / dy);
+
+    // Tangential parts sign:
+    // mult = -A*n_y = (-A) on top face (n_y=+1), (+A) on bottom face (n_y=-1)
+    const real_cpu mult = is_top_face ? (-A) : (+A);
+
+    // σyx * (∂u/∂x)_face
+    if(fabs(s_xy) > 0.0) {
+        const real_cpu scale = 0.5 * mult * s_xy;
+        accumulate_dudx_at_cell(P, P, dx, scale);
+        accumulate_dudx_at_cell(P, N, dx, scale);
+    }
+
+    // σyz * (∂u/∂z)_face
+    if(fabs(s_yz) > 0.0) {
+        const real_cpu scale = 0.5 * mult * s_yz;
+        accumulate_dudz_at_cell(P, P, dz, scale);
+        accumulate_dudz_at_cell(P, N, dz, scale);
+    }
+}
+
+static inline void assemble_z_face_flux(struct cell_node *P, struct cell_node *N, bool is_front_face) {
+
+    const real_cpu dx = P->discretization.x;
+    const real_cpu dy = P->discretization.y;
+    const real_cpu dz = P->discretization.z;
+    const real_cpu A  = dx * dy;
+
+    // z-face tensor row: [σzx, σzy, σzz] with σzx=σxz, σzy=σyz (symmetric tensor)
+    const real_cpu s_zz = harmonic_mean_2_pos(P->sigma.z,  N->sigma.z);
+    const real_cpu s_xz = arithmetic_mean_2(P->sigma.xz, N->sigma.xz);
+    const real_cpu s_yz = arithmetic_mean_2(P->sigma.yz, N->sigma.yz);
+
+    // Normal part: -A*σzz*(∂u/∂z)_face -> coefficient to u_N is -A*σzz/dz
+    add_term(P, N, -s_zz * A / dz);
+
+    // Tangential parts sign:
+    // mult = -A*n_z = (-A) on front face (n_z=+1), (+A) on back face (n_z=-1)
+    const real_cpu mult = is_front_face ? (-A) : (+A);
+
+    // σzx * (∂u/∂x)_face
+    if(fabs(s_xz) > 0.0) {
+        const real_cpu scale = 0.5 * mult * s_xz;
+        accumulate_dudx_at_cell(P, P, dx, scale);
+        accumulate_dudx_at_cell(P, N, dx, scale);
+    }
+
+    // σzy * (∂u/∂y)_face
+    if(fabs(s_yz) > 0.0) {
+        const real_cpu scale = 0.5 * mult * s_yz;
+        accumulate_dudy_at_cell(P, P, dy, scale);
+        accumulate_dudy_at_cell(P, N, dy, scale);
+    }
 }
 
 static void fill_discretization_matrix_elements_aniso(struct cell_node *cell_i) {
-    struct cell_node *neighbours[26];
 
-    // Get all neighbors
-    for(int direction = 0; direction < NUM_DIRECTIONS; direction++) {
-        struct cell_node *neighbour = get_cell_neighbour_with_same_refinement_level(cell_i, direction);
-        if(neighbour && neighbour->active) {
-            neighbours[direction] = neighbour;
-        } else {
-            neighbours[direction] = NULL;
-        }
+    if(!is_diffusive_cell(cell_i)) {
+        return;
     }
 
-    real_cpu dx = cell_i->discretization.x;
-    real_cpu dy = cell_i->discretization.y;
-    real_cpu dz = cell_i->discretization.z;
+    // For Neumann/no-flux BC and for internal obstacles:
+    // - If the neighbor is NULL => missing (boundary) or obstacle => no-flux => skip.
+    struct cell_node *R = diffusive_neighbour(cell_i, RIGHT);
+    struct cell_node *L = diffusive_neighbour(cell_i, LEFT);
+    struct cell_node *T = diffusive_neighbour(cell_i, TOP);
+    struct cell_node *D = diffusive_neighbour(cell_i, DOWN);
+    struct cell_node *F = diffusive_neighbour(cell_i, FRONT);
+    struct cell_node *B = diffusive_neighbour(cell_i, BACK);
 
-    // =================================================================
-    // FACE NEIGHBORS - Direct diffusion terms (∇·(σ∇u) main diagonal terms)
-    // =================================================================
+    if(R) assemble_x_face_flux(cell_i, R, true);
+    if(L) assemble_x_face_flux(cell_i, L, false);
 
-    if(neighbours[RIGHT]) {
-        real_cpu sigma_xx = harmonic_mean_2(cell_i->sigma.x, neighbours[RIGHT]->sigma.x);
-        add_single_entry(cell_i, neighbours[RIGHT], -sigma_xx * dy * dz / dx);
-    }
+    if(T) assemble_y_face_flux(cell_i, T, true);
+    if(D) assemble_y_face_flux(cell_i, D, false);
 
-    if(neighbours[LEFT]) {
-        real_cpu sigma_xx =harmonic_mean_2(cell_i->sigma.x, neighbours[LEFT]->sigma.x);
-        add_single_entry(cell_i, neighbours[LEFT], -sigma_xx * dy * dz / dx);
-    }
-
-    if(neighbours[TOP]) {
-        real_cpu sigma_yy = harmonic_mean_2(cell_i->sigma.y, neighbours[TOP]->sigma.y);
-        add_single_entry(cell_i, neighbours[TOP], -sigma_yy * dx * dz / dy);
-    }
-
-    if(neighbours[DOWN]) {
-        real_cpu sigma_yy = harmonic_mean_2(cell_i->sigma.y, neighbours[DOWN]->sigma.y);
-        add_single_entry(cell_i, neighbours[DOWN], -sigma_yy * dx * dz / dy);
-    }
-
-    if(neighbours[FRONT]) {
-        real_cpu sigma_zz = harmonic_mean_2(cell_i->sigma.z, neighbours[FRONT]->sigma.z);
-        add_single_entry(cell_i, neighbours[FRONT], -sigma_zz * dx * dy / dz);
-    }
-
-    if(neighbours[BACK]) {
-        real_cpu sigma_zz = harmonic_mean_2(cell_i->sigma.z, neighbours[BACK]->sigma.z);
-        add_single_entry(cell_i, neighbours[BACK], -sigma_zz * dx * dy / dz);
-    }
-
-    if(neighbours[TOP_RIGHT] && neighbours[TOP] && neighbours[RIGHT]) {
-        // Harmonic mean of σxy over the 4 corner points
-        real_cpu sigma_xy_avg = harmonic_mean_4(cell_i->sigma.xy,
-                                               neighbours[RIGHT]->sigma.xy,
-                                               neighbours[TOP]->sigma.xy,
-                                               neighbours[TOP_RIGHT]->sigma.xy);
-
-        // Correct coefficient for XY cross-derivative on structured mesh
-        real_cpu coeff = sigma_xy_avg * dz / (dx * dy);
-
-        // Apply the 4-point cross-derivative stencil
-        add_single_entry(cell_i, neighbours[TOP_RIGHT], coeff);
-        add_single_entry(cell_i, neighbours[TOP], -coeff);
-        add_single_entry(cell_i, neighbours[RIGHT], -coeff);
-        // The fourth point (cell_i itself) contributes to diagonal: +coeff
-        cell_i->elements[0].value += coeff;
-    }
-
-    if(neighbours[TOP_LEFT] && neighbours[TOP] && neighbours[LEFT]) {
-        real_cpu sigma_xy_avg = harmonic_mean_4(cell_i->sigma.xy,
-                                               neighbours[LEFT]->sigma.xy,
-                                               neighbours[TOP]->sigma.xy,
-                                               neighbours[TOP_LEFT]->sigma.xy);
-        real_cpu coeff = sigma_xy_avg * dz / (dx * dy);
-
-        add_single_entry(cell_i, neighbours[TOP_LEFT], -coeff);
-        add_single_entry(cell_i, neighbours[TOP], coeff);
-        add_single_entry(cell_i, neighbours[LEFT], coeff);
-        cell_i->elements[0].value -= coeff;
-    }
-
-    if(neighbours[DOWN_RIGHT] && neighbours[DOWN] && neighbours[RIGHT]) {
-        real_cpu sigma_xy_avg = harmonic_mean_4(cell_i->sigma.xy,
-                                               neighbours[RIGHT]->sigma.xy,
-                                               neighbours[DOWN]->sigma.xy,
-                                               neighbours[DOWN_RIGHT]->sigma.xy);
-        real_cpu coeff = sigma_xy_avg * dz / (dx * dy);
-
-        add_single_entry(cell_i, neighbours[DOWN_RIGHT], -coeff);
-        add_single_entry(cell_i, neighbours[DOWN], coeff);
-        add_single_entry(cell_i, neighbours[RIGHT], coeff);
-        cell_i->elements[0].value -= coeff;
-    }
-
-    if(neighbours[DOWN_LEFT] && neighbours[DOWN] && neighbours[LEFT]) {
-        real_cpu sigma_xy_avg = harmonic_mean_4(cell_i->sigma.xy,
-                                               neighbours[LEFT]->sigma.xy,
-                                               neighbours[DOWN]->sigma.xy,
-                                               neighbours[DOWN_LEFT]->sigma.xy);
-        real_cpu coeff = sigma_xy_avg * dz / (dx * dy);
-
-        add_single_entry(cell_i, neighbours[DOWN_LEFT], coeff);
-        add_single_entry(cell_i, neighbours[DOWN], -coeff);
-        add_single_entry(cell_i, neighbours[LEFT], -coeff);
-        cell_i->elements[0].value += coeff;
-    }
-
-    // XZ cross-derivative
-    if(neighbours[FRONT_RIGHT] && neighbours[FRONT] && neighbours[RIGHT]) {
-        real_cpu sigma_xz_avg = harmonic_mean_4(cell_i->sigma.xz,
-                                               neighbours[RIGHT]->sigma.xz,
-                                               neighbours[FRONT]->sigma.xz,
-                                               neighbours[FRONT_RIGHT]->sigma.xz);
-        real_cpu coeff = sigma_xz_avg * dy / (dx * dz);
-
-        add_single_entry(cell_i, neighbours[FRONT_RIGHT], coeff);
-        add_single_entry(cell_i, neighbours[FRONT], -coeff);
-        add_single_entry(cell_i, neighbours[RIGHT], -coeff);
-        cell_i->elements[0].value += coeff;
-    }
-
-    if(neighbours[FRONT_LEFT] && neighbours[FRONT] && neighbours[LEFT]) {
-        real_cpu sigma_xz_avg = harmonic_mean_4(cell_i->sigma.xz,
-                                               neighbours[LEFT]->sigma.xz,
-                                               neighbours[FRONT]->sigma.xz,
-                                               neighbours[FRONT_LEFT]->sigma.xz);
-        real_cpu coeff = sigma_xz_avg * dy / (dx * dz);
-
-        add_single_entry(cell_i, neighbours[FRONT_LEFT], -coeff);
-        add_single_entry(cell_i, neighbours[FRONT], coeff);
-        add_single_entry(cell_i, neighbours[LEFT], coeff);
-        cell_i->elements[0].value -= coeff;
-    }
-
-    if(neighbours[BACK_RIGHT] && neighbours[BACK] && neighbours[RIGHT]) {
-        real_cpu sigma_xz_avg = harmonic_mean_4(cell_i->sigma.xz,
-                                               neighbours[RIGHT]->sigma.xz,
-                                               neighbours[BACK]->sigma.xz,
-                                               neighbours[BACK_RIGHT]->sigma.xz);
-        real_cpu coeff = sigma_xz_avg * dy / (dx * dz);
-
-        add_single_entry(cell_i, neighbours[BACK_RIGHT], -coeff);
-        add_single_entry(cell_i, neighbours[BACK], coeff);
-        add_single_entry(cell_i, neighbours[RIGHT], coeff);
-        cell_i->elements[0].value -= coeff;
-    }
-
-    if(neighbours[BACK_LEFT] && neighbours[BACK] && neighbours[LEFT]) {
-        real_cpu sigma_xz_avg = harmonic_mean_4(cell_i->sigma.xz,
-                                               neighbours[LEFT]->sigma.xz,
-                                               neighbours[BACK]->sigma.xz,
-                                               neighbours[BACK_LEFT]->sigma.xz);
-        real_cpu coeff = sigma_xz_avg * dy / (dx * dz);
-
-        add_single_entry(cell_i, neighbours[BACK_LEFT], coeff);
-        add_single_entry(cell_i, neighbours[BACK], -coeff);
-        add_single_entry(cell_i, neighbours[LEFT], -coeff);
-        cell_i->elements[0].value += coeff;
-    }
-
-    // YZ cross-derivative
-    if(neighbours[FRONT_TOP] && neighbours[FRONT] && neighbours[TOP]) {
-        real_cpu sigma_yz_avg = harmonic_mean_4(cell_i->sigma.yz,
-                                               neighbours[TOP]->sigma.yz,
-                                               neighbours[FRONT]->sigma.yz,
-                                               neighbours[FRONT_TOP]->sigma.yz);
-        real_cpu coeff = sigma_yz_avg * dx / (dy * dz);
-
-        add_single_entry(cell_i, neighbours[FRONT_TOP], coeff);
-        add_single_entry(cell_i, neighbours[FRONT], -coeff);
-        add_single_entry(cell_i, neighbours[TOP], -coeff);
-        cell_i->elements[0].value += coeff;
-    }
-
-    if(neighbours[FRONT_DOWN] && neighbours[FRONT] && neighbours[DOWN]) {
-        real_cpu sigma_yz_avg = harmonic_mean_4(cell_i->sigma.yz,
-                                               neighbours[DOWN]->sigma.yz,
-                                               neighbours[FRONT]->sigma.yz,
-                                               neighbours[FRONT_DOWN]->sigma.yz);
-        real_cpu coeff = sigma_yz_avg * dx / (dy * dz);
-
-        add_single_entry(cell_i, neighbours[FRONT_DOWN], -coeff);
-        add_single_entry(cell_i, neighbours[FRONT], coeff);
-        add_single_entry(cell_i, neighbours[DOWN], coeff);
-        cell_i->elements[0].value -= coeff;
-    }
-
-    if(neighbours[BACK_TOP] && neighbours[BACK] && neighbours[TOP]) {
-        real_cpu sigma_yz_avg = harmonic_mean_4(cell_i->sigma.yz,
-                                               neighbours[TOP]->sigma.yz,
-                                               neighbours[BACK]->sigma.yz,
-                                               neighbours[BACK_TOP]->sigma.yz);
-        real_cpu coeff = sigma_yz_avg * dx / (dy * dz);
-
-        add_single_entry(cell_i, neighbours[BACK_TOP], -coeff);
-        add_single_entry(cell_i, neighbours[BACK], coeff);
-        add_single_entry(cell_i, neighbours[TOP], coeff);
-        cell_i->elements[0].value -= coeff;
-    }
-
-    if(neighbours[BACK_DOWN] && neighbours[BACK] && neighbours[DOWN]) {
-        real_cpu sigma_yz_avg = harmonic_mean_4(cell_i->sigma.yz,
-                                               neighbours[DOWN]->sigma.yz,
-                                               neighbours[BACK]->sigma.yz,
-                                               neighbours[BACK_DOWN]->sigma.yz);
-        real_cpu coeff = sigma_yz_avg * dx / (dy * dz);
-
-        add_single_entry(cell_i, neighbours[BACK_DOWN], coeff);
-        add_single_entry(cell_i, neighbours[BACK], -coeff);
-        add_single_entry(cell_i, neighbours[DOWN], -coeff);
-        cell_i->elements[0].value += coeff;
-    }
+    if(F) assemble_z_face_flux(cell_i, F, true);
+    if(B) assemble_z_face_flux(cell_i, B, false);
 }
+
 
 
 static void fill_discretization_matrix_elements(struct cell_node *grid_cell, void *neighbour_grid_cell, enum transition_direction direction) {
